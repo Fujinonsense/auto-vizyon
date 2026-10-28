@@ -1,4 +1,5 @@
 // Folder search: forgiving about Turkish letters, spacing and partial numbers.
+import { monthKey } from './stats.js';
 
 export function foldTr(s) {
   return String(s ?? '')
@@ -29,18 +30,16 @@ export function matchesQuery(summary, query) {
   });
 }
 
-const monthOf = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-
 const FILTERS = {
   tum: () => true,
   borc: (s) => s.jobs.some((j) => !j.paid),
   sigorta: (s) => s.jobs.some((j) => j.payer === 'sigorta'),
   buay: (s, month) =>
-    s.jobs.some((j) => (j.date || '').startsWith(month)) || monthOf(new Date(s.folder.createdAt || 0)) === month,
+    s.jobs.some((j) => (j.date || '').startsWith(month)) || monthKey(new Date(s.folder.createdAt || 0)) === month,
 };
 
 export function filterSummaries(list, { query = '', filter = 'tum' } = {}, now = new Date()) {
   const keep = FILTERS[filter] || FILTERS.tum;
-  const month = monthOf(now);
+  const month = monthKey(now);
   return list.filter((s) => keep(s, month) && matchesQuery(s, query));
 }

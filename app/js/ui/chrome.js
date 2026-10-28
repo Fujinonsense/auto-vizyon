@@ -5,12 +5,14 @@ import { go, back as goBack } from './router.js';
 // The sync status lives in one node that moves with the home top bar.
 export const syncSlot = h('span', { id: 'sync-slot' });
 
+// Home: the bar floats transparent over the hero and turns solid on scroll (setTopbarSolid).
 export function setTopbar({ title = '', back = '/', actions = [] } = {}) {
   const bar = document.getElementById('topbar');
+  document.body.classList.toggle('home', !title);
+  bar.classList.remove('solid');
   if (!title) {
     bar.replaceChildren(
-      h('img', { class: 'mark', src: 'img/mark.png', alt: '' }),
-      h('span', { class: 'brand' }, 'Auto Vizyon'),
+      h('img', { class: 'wm', src: 'img/wordmark-dark.png', alt: 'Auto Vizyon' }),
       h('span', { class: 'spacer' }),
       syncSlot,
       h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Ayarlar', onclick: () => go('/ayarlar') }, icon('settings', 26)),
@@ -22,6 +24,10 @@ export function setTopbar({ title = '', back = '/', actions = [] } = {}) {
     h('span', { class: 'title' }, title),
     ...actions,
   );
+}
+
+export function setTopbarSolid(solid) {
+  document.getElementById('topbar').classList.toggle('solid', solid);
 }
 
 export function buildTabbar() {
