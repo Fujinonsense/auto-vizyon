@@ -7,6 +7,12 @@ export function plateChip(plate, { big = false } = {}) {
     h('span', { class: 'num' }, plate));
 }
 
+export function statusBadge(job) {
+  if (job.paid) return h('span', { class: 'badge ok' }, 'Ödendi');
+  if (job.payer === 'sigorta') return h('span', { class: 'badge ins' }, 'Sigortada');
+  return h('span', { class: 'badge due' }, 'Borç');
+}
+
 // Object URLs for photo blobs, revoked together when the screen is left.
 export function urlScope() {
   const urls = [];

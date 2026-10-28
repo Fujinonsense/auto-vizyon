@@ -1,21 +1,12 @@
-import { route, startRouter, go } from './ui/router.js';
-import { buildTabbar, setTopbar, setTab } from './ui/chrome.js';
-import { h, icon } from './ui/dom.js';
-import { emptyState } from './ui/parts.js';
+import { route, startRouter } from './ui/router.js';
+import { buildTabbar } from './ui/chrome.js';
+import { listScreen } from './ui/screens/list.js';
 
 buildTabbar();
-
-route('/', () => {
-  setTopbar();
-  setTab('list');
-  return emptyState({
-    title: 'İlk aracı çek',
-    text: 'Aracın fotoğrafını çekince plaka okunur, müşterinin klasörü açılır.',
-    action: h('button', { class: 'btn primary', type: 'button', onclick: () => go('/yeni') }, icon('camera'), 'Yeni araç'),
-  });
-});
-
+route('/', listScreen);
 startRouter();
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+// No offline cache during local development, so edits show up on reload.
+const local = ['localhost', '127.0.0.1'].includes(location.hostname);
+if ('serviceWorker' in navigator && !local) navigator.serviceWorker.register('./sw.js');
 navigator.storage?.persist?.();
