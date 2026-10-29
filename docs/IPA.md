@@ -2,7 +2,7 @@
 
 Uygulama App Store'a çıkmaz. Senin Apple Developer hesabınla imzalanır ve sadece kayıtlı iPhone'a, yani babanınkine kurulur. İmza 1 yıl geçerlidir; yıl dolmadan aynı adımlarla yenilersin.
 
-Toplam süre: ilk seferde yaklaşık 40 dakika (10 dakikası derlemeyi beklemek).
+Toplam süre: ilk seferde yaklaşık 30 dakika. Derlemenin kendisi 2-3 dakika sürer.
 
 ## 0. Hazırlık (bir kere)
 
@@ -38,7 +38,7 @@ Toplam süre: ilk seferde yaklaşık 40 dakika (10 dakikası derlemeyi beklemek)
    ```
    Sertifikanın anahtarla, profilin sertifikayla eşleştiğini kontrol eder, GitHub'a üç gizli değer yazar (`IOS_CERT_P12_BASE64`, `IOS_CERT_PASSWORD`, `IOS_PROFILE_BASE64`) ve imzalı derlemeyi başlatır.
 
-## 3. IPA'yı indir (8-12 dakika bekleme)
+## 3. IPA'yı indir (2-5 dakika bekleme)
 
 ```bash
 gh run watch --repo Fujinonsense/auto-vizyon

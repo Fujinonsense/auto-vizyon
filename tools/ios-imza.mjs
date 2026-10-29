@@ -118,7 +118,7 @@ function yukle() {
   gh(['secret', 'set', 'IOS_PROFILE_BASE64', '--repo', REPO], profileBuf.toString('base64'));
   gh(['workflow', 'run', 'ios.yml', '--repo', REPO, '--ref', 'main']);
   console.log(`Profil: ${p.name} · ${p.devices} iPhone · ${p.expires} tarihine kadar geçerli
-GitHub'a üç gizli değer yazıldı, imzalı IPA derlemesi başladı (8-12 dakika).
+GitHub'a üç gizli değer yazıldı, imzalı IPA derlemesi başladı (2-5 dakika).
 İzlemek için:  gh run watch --repo ${REPO}
 İndirmek için: gh run download --repo ${REPO} --dir ipa`);
 }
