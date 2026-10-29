@@ -1,4 +1,5 @@
 import UIKit
+import WebKit
 import Capacitor
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
@@ -7,9 +8,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = scene as? UIWindowScene else { return }
 
+        let bridge = CAPBridgeViewController()
         window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = CAPBridgeViewController()
+        window?.rootViewController = bridge
         window?.makeKeyAndVisible()
+        // No scroll bar beside the page, as in a native app.
+        bridge.webView?.scrollView.showsVerticalScrollIndicator = false
+        bridge.webView?.scrollView.showsHorizontalScrollIndicator = false
 
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)
     }

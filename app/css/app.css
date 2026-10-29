@@ -80,6 +80,9 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+/* No scroll bars anywhere, as in a native app (SceneDelegate.swift also hides the page's indicator). */
+* { scrollbar-width: none; }
+::-webkit-scrollbar { display: none; }
 html { -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 h1, h2, h3, .ftitle, .empty h2 { text-wrap: balance; }
 p, .muted, .doc-row span, .banner span { text-wrap: pretty; }
@@ -340,8 +343,7 @@ button.stat { cursor: pointer; }
 .search svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--steel); }
 .search input { padding-left: 46px; }
 
-.chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 4px; scrollbar-width: none; }
-.chips::-webkit-scrollbar { display: none; }
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 4px; }
 .chip {
   flex: none;
   min-height: 40px;
@@ -568,7 +570,7 @@ details.form-sec:not([open]) { padding-bottom: 6px; }
   border: 1px solid var(--line);
 }
 button.photo-main { display: grid; place-content: center; justify-items: center; gap: 8px; color: var(--steel); font-weight: 600; cursor: pointer; }
-.photo-strip { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.photo-strip { display: flex; gap: 8px; overflow-x: auto; }
 .photo-strip img, .photo-add { flex: none; width: 64px; height: 64px; border-radius: 12px; object-fit: cover; border: 1px solid var(--line); }
 .photo-add { display: grid; place-content: center; justify-items: center; background: var(--surface); color: var(--gold-ink); font-size: 13px; font-weight: 600; cursor: pointer; }
 
@@ -909,7 +911,7 @@ button.photo-main { display: grid; place-content: center; justify-items: center;
 .cam-chip.warn { background: rgba(242, 182, 72, 0.22); color: #ffe2a8; }
 .cam-chip .plate { height: 28px; }
 .cam-chip .plate .num { font-size: 20px; }
-.cam-strip { display: flex; gap: 8px; overflow-x: auto; padding: 10px 14px 0; scrollbar-width: none; }
+.cam-strip { display: flex; gap: 8px; overflow-x: auto; padding: 10px 14px 0; }
 .cam-strip:empty { display: none; }
 .cam-shot { position: relative; flex: none; }
 .cam-shot img { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; border: 2px solid rgba(255, 255, 255, 0.85); }
