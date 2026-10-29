@@ -38,8 +38,8 @@ test('the client sends a fresh token and JSON, and reports Apple errors with the
   assert.equal(seen[1].init.body, JSON.stringify({ data: {} }));
 });
 
-test('the client retries reads through Apple outages, spurious 401s and dropped connections, but never repeats a write', async () => {
-  const replies = { GET: [503, 'drop', 429, 401, 200], POST: [503, 201] };
+test('the client retries reads through outages, spurious 401s and dropped connections, and writes only when Apple turned them away unread', async () => {
+  const replies = { GET: [503, 'drop', 429, 401, 200], POST: [429, 201, 503, 201] };
   const fetchImpl = async (url, init) => {
     const next = replies[init.method].shift();
     if (next === 'drop') throw new TypeError('fetch failed');
@@ -51,8 +51,10 @@ test('the client retries reads through Apple outages, spurious 401s and dropped 
   assert.deepEqual(await api('GET', '/v1/builds?x'), { data: [] });
   assert.equal(waits.length, 4);
   assert.ok(waits.every((ms) => ms >= 5_000), `waits ${waits}`);
+  assert.deepEqual(await api('POST', '/v1/buildBetaNotifications', { data: {} }), { data: [] });
+  assert.equal(waits.length, 5, 'a write turned away with 429 is sent again');
   await assert.rejects(api('POST', '/v1/betaAppReviewSubmissions', { data: {} }), (e) => e.status === 503);
-  assert.equal(waits.length, 4, 'the write was not retried');
+  assert.equal(waits.length, 5, 'a write that failed with 503 is not repeated');
 });
 
 test('a read that keeps failing gives up after a few minutes with Apple\'s error', async () => {
@@ -64,16 +66,19 @@ test('a read that keeps failing gives up after a few minutes with Apple\'s error
 });
 
 const b8 = { id: 'b8', attributes: { version: '8' } };
+// One row of the follow-up run's build list: a build and its external-testing details.
+const listed = (version, { uploadedDate = '2026-12-20T10:00:00Z', processingState = 'VALID', external = 'IN_BETA_TESTING', autoNotify = true } = {}) =>
+  ({ version, uploadedDate, processingState, external, autoNotify });
 
 // A pretend App Store Connect: answers by route, remembers every call.
-// - external: the build's beta state, or a list with one entry per read;
+// - external: build 9's beta state, or a list with one entry per read; autoNotify: its release flag;
 // - inReview: one list of builds per "what is in review" query (the last one repeats);
-// - newest: the newest valid build; approved: the newest build that passed beta review;
+// - builds: the follow-up run's list of recent builds, newest first;
 // - refuse: makes a write to that path fail with Apple's status and code.
 function fakeApi({
-  states = ['VALID'], external = 'READY_FOR_BETA_SUBMISSION', localizations = [],
+  states = ['VALID'], external = 'READY_FOR_BETA_SUBMISSION', autoNotify = true, localizations = [],
   groups = [{ id: 'g1', attributes: { name: 'Babam', isInternalGroup: false } }],
-  inReview = [[]], newest = [{ id: 'b9', attributes: { version: '9' } }], approved = [], refuse = {},
+  inReview = [[]], builds = [listed('9', { external: 'READY_FOR_BETA_SUBMISSION' })], refuse = {},
 } = {}) {
   const calls = [];
   const externals = [].concat(external);
@@ -87,18 +92,27 @@ function fakeApi({
     if (path.startsWith('/v1/apps?')) return { data: [{ id: 'app1' }] };
     if (path.startsWith('/v1/builds?')) {
       if (path.includes('betaReviewState]=WAITING_FOR_REVIEW,IN_REVIEW')) return { data: inReview[Math.min(reviewQueries++, inReview.length - 1)] };
-      if (path.includes('betaReviewState]=APPROVED')) return { data: approved };
       if (path.includes('filter[version]=')) {
         const state = states[Math.min(poll++, states.length - 1)];
         return { data: state ? [{ id: 'b9', attributes: { version: '9', processingState: state } }] : [] };
       }
-      if (path.includes('filter[processingState]=VALID&')) return { data: newest };
+      if (path.includes('include=buildBetaDetail')) {
+        return {
+          data: builds.map((b) => ({
+            type: 'builds', id: `b${b.version}`,
+            attributes: { version: b.version, uploadedDate: b.uploadedDate, processingState: b.processingState },
+            relationships: { buildBetaDetail: { data: { type: 'buildBetaDetails', id: `d${b.version}` } } },
+          })),
+          included: builds.map((b) => ({ type: 'buildBetaDetails', id: `d${b.version}`, attributes: { externalBuildState: b.external, autoNotifyEnabled: b.autoNotify } })),
+        };
+      }
       throw new Error(`unexpected ${method} ${path}`);
     }
     if (path.startsWith('/v1/betaGroups?')) return { data: groups };
     if (path === '/v1/builds/b9/betaBuildLocalizations') return { data: localizations };
     if (path === '/v1/builds/b9/buildBetaDetail') {
-      return { data: { id: 'd9', attributes: { externalBuildState: externals[Math.min(reads++, externals.length - 1)] } } };
+      const state = externals[Math.min(reads++, externals.length - 1)];
+      return { data: { type: 'buildBetaDetails', id: 'd9', attributes: { externalBuildState: state, autoNotifyEnabled: autoNotify } } };
     }
     if (method === 'POST' || method === 'PATCH') return null;
     throw new Error(`unexpected ${method} ${path}`);
@@ -132,6 +146,38 @@ test('a new build is waited for, added to the father\'s group, given its notes a
   assert.ok(check.path.includes('filter[app]=app1') && check.path.includes('filter[expired]=false'));
   const submit = calls.find((c) => c.path === '/v1/betaAppReviewSubmissions');
   assert.deepEqual(submit.body, { data: { type: 'betaAppReviewSubmissions', relationships: { build: { data: { type: 'builds', id: 'b9' } } } } });
+  assert.ok(!calls.some((c) => c.method === 'PATCH' || c.path === '/v1/buildBetaNotifications'), 'release flag already on');
+});
+
+test('automatic release to testers is switched on before the build is reviewed', async () => {
+  for (const state of ['READY_FOR_BETA_SUBMISSION', 'WAITING_FOR_BETA_REVIEW', 'IN_BETA_REVIEW']) {
+    const { api, calls } = fakeApi({ external: state, autoNotify: false });
+    await run(api);
+    const patch = calls.find((c) => c.method === 'PATCH' && c.path === '/v1/buildBetaDetails/d9');
+    assert.deepEqual(patch?.body, { data: { type: 'buildBetaDetails', id: 'd9', attributes: { autoNotifyEnabled: true } } }, state);
+    const submit = calls.findIndex((c) => c.path === '/v1/betaAppReviewSubmissions');
+    assert.ok(submit === -1 || calls.indexOf(patch) < submit, `${state}: flag before submission`);
+  }
+});
+
+test('a build approved without automatic release is released to the testers', async () => {
+  const note = { data: { type: 'buildBetaNotifications', relationships: { build: { data: { type: 'builds', id: 'b9' } } } } };
+  for (const state of ['BETA_APPROVED', 'READY_FOR_BETA_TESTING']) {
+    const { api, calls } = fakeApi({ external: state, autoNotify: false });
+    assert.deepEqual(await run(api), { buildId: 'b9', submitted: false, state, notified: true });
+    assert.deepEqual(calls.find((c) => c.path === '/v1/buildBetaNotifications')?.body, note, state);
+    assert.ok(!calls.some((c) => c.method === 'PATCH'), `${state}: no flag change after approval`);
+  }
+
+  const byApple = fakeApi({ external: 'BETA_APPROVED', autoNotify: true });
+  await run(byApple.api);
+  assert.ok(!byApple.calls.some((c) => c.path === '/v1/buildBetaNotifications'), 'Apple releases it by itself');
+
+  const at = '/v1/buildBetaNotifications';
+  const already = fakeApi({ external: ['BETA_APPROVED', 'IN_BETA_TESTING'], autoNotify: false, refuse: { [at]: { status: 409, code: 'STATE_ERROR' } } });
+  assert.deepEqual(await run(already.api), { buildId: 'b9', submitted: false, state: 'IN_BETA_TESTING' });
+  const stuck = fakeApi({ external: 'BETA_APPROVED', autoNotify: false, refuse: { [at]: { status: 409, code: 'STATE_ERROR' } } });
+  await assert.rejects(run(stuck.api), (e) => e.status === 409);
 });
 
 test('the build waits while Apple is still preparing it for external testing, then goes to review', async () => {
@@ -153,7 +199,7 @@ test('a build already waiting for or past review is not sent again, and its note
 
 test('a build that cannot reach the father stops the run with its state, before anything is changed', async () => {
   for (const state of ['MISSING_EXPORT_COMPLIANCE', 'BETA_REJECTED', 'EXPIRED', 'PROCESSING_EXCEPTION']) {
-    const { api, calls } = fakeApi({ external: state });
+    const { api, calls } = fakeApi({ external: state, autoNotify: false });
     await assert.rejects(run(api), new RegExp(`9.*${state}`));
     assert.ok(!calls.some((c) => c.method !== 'GET'), state);
   }
@@ -220,30 +266,48 @@ test('a failed build, a missing group or a build that never gets ready stops wit
   await assert.rejects(run(fakeApi({ groups: [] }).api), /Babam/);
   await assert.rejects(run(fakeApi({ groups: [{ id: 'g0', attributes: { name: 'Babam', isInternalGroup: true } }] }).api), /Babam/);
   let t = 0;
-  await assert.rejects(run(fakeApi({ states: [null] }).api, { now: () => (t += 60_000), timeoutMs: 5 * 60_000 }), /9.*dakika/);
+  await assert.rejects(run(fakeApi({ states: [null] }).api, { now: () => (t += 60_000), timeoutMs: 5 * 60_000 }),
+    (e) => /9.*dakika/.test(e.message) && e.late === true && e.state === undefined);
   t = 0;
-  await assert.rejects(run(fakeApi({ external: 'PROCESSING' }).api, { now: () => (t += 60_000), timeoutMs: 5 * 60_000 }), /9.*dakika.*PROCESSING/);
+  // Still processing at the deadline: the upload's run may let the follow-up run finish the job.
+  await assert.rejects(run(fakeApi({ external: 'PROCESSING' }).api, { now: () => (t += 60_000), timeoutMs: 5 * 60_000 }),
+    (e) => /9.*dakika.*PROCESSING/.test(e.message) && e.late === true && e.state === 'PROCESSING');
 });
 
-// The follow-up run (testflight-takip.yml), every few hours.
+// The follow-up run (testflight-takip.yml), once a day.
 const NOW = Date.parse('2026-12-31T00:00:00Z');
 const look = (api, extra = {}) => lookAfter({
   api, bundleId: 'com.autovizyon.app', groupName: 'Babam', whatsNew: 'Yeni sürüm',
   sleep: async () => {}, now: () => NOW, log: () => {}, ...extra,
 });
-const approvedOn = (uploadedDate, expired = false) => [{ id: 'b9', attributes: { version: '9', uploadedDate, expired } }];
 
-test('the follow-up run sends the newest valid build on and reports what is in review', async () => {
-  const { api, calls } = fakeApi({ approved: approvedOn('2026-12-20T10:00:00Z') });
+test('the follow-up run sends the newest valid build on and reports what reached the father', async () => {
+  const { api, calls } = fakeApi({ builds: [
+    listed('10', { processingState: 'PROCESSING', external: 'PROCESSING', uploadedDate: '2026-12-30T23:00:00Z' }),
+    listed('9', { external: 'READY_FOR_BETA_SUBMISSION', uploadedDate: '2026-12-29T10:00:00Z' }),
+    listed('8', { external: 'IN_BETA_TESTING', uploadedDate: '2026-12-20T10:00:00Z' }),
+  ] });
   const report = await look(api);
-  const newest = calls.find((c) => c.path.includes('filter[processingState]=VALID&'));
-  assert.ok(newest.path.includes('filter[app]=app1') && newest.path.includes('filter[expired]=false') && newest.path.includes('sort=-uploadedDate'));
-  assert.ok(calls.some((c) => c.path.includes('filter[version]=9')), 'distributes the newest build');
-  assert.ok(calls.some((c) => c.path === '/v1/betaAppReviewSubmissions'));
+  const list = calls.find((c) => c.path.includes('include=buildBetaDetail'));
+  for (const part of ['filter[app]=app1', 'filter[processingState]=PROCESSING,VALID', 'filter[expired]=false', 'sort=-uploadedDate', 'limit=']) {
+    assert.ok(list.path.includes(part), part);
+  }
+  assert.ok(calls.some((c) => c.path.includes('filter[version]=9')), 'distributes the newest processed build');
+  assert.ok(!calls.some((c) => c.path.includes('filter[version]=10')), 'not the one still processing');
   assert.equal(report.newest, '9');
   assert.equal(report.result.submitted, true);
-  assert.equal(report.approved, '9');
+  assert.equal(report.released, '8');
   assert.equal(report.days, 10);
+});
+
+test('an approved build counts as reaching the father only when Apple releases it to the testers', async () => {
+  const byFlag = fakeApi({ external: 'READY_FOR_BETA_TESTING', builds: [listed('9', { external: 'READY_FOR_BETA_TESTING', autoNotify: true })] });
+  assert.equal((await look(byFlag.api)).released, '9');
+
+  const held = fakeApi({ external: 'BETA_APPROVED', autoNotify: false, builds: [listed('9', { external: 'BETA_APPROVED', autoNotify: false })] });
+  const report = await look(held.api);
+  assert.equal(report.released, undefined);
+  assert.equal(report.result.notified, true, 'released to the testers by this run');
 });
 
 test('while another build is in review the follow-up run waits instead of submitting', async () => {
@@ -254,23 +318,39 @@ test('while another build is in review the follow-up run waits instead of submit
   assert.ok(!calls.some((c) => c.path === '/v1/betaAppReviewSubmissions'));
 });
 
-test('the follow-up run raises the alarm when the newest build the father can install nears expiry', async () => {
-  await assert.rejects(look(fakeApi({ approved: approvedOn('2026-10-29T13:00:00Z') }).api), /9.*62 gün/);
-  await assert.rejects(look(fakeApi({ approved: approvedOn('2026-12-20T10:00:00Z', true) }).api), /9.*süresi doldu/);
-  await look(fakeApi({ approved: approvedOn('2026-11-15T06:30:00Z') }).api);
-  const first = await look(fakeApi({ approved: [] }).api);
-  assert.equal(first.approved, undefined, 'nothing approved yet: the first review is still running');
+test('the follow-up run raises the alarm when the newest build the father has is 46 days or more old', async () => {
+  const aged = (uploadedDate) => fakeApi({ external: 'IN_BETA_TESTING', builds: [listed('9', { uploadedDate })] }).api;
+  await assert.rejects(look(aged('2026-11-14T00:00:00Z')), /9.*47 gün/);
+  await assert.rejects(look(aged('2026-10-29T13:00:00Z')), /9.*62 gün/);
+  assert.equal((await look(aged('2026-11-15T06:30:00Z'))).days, 45);
 });
 
-test('a problem with the newest build is only a warning in the follow-up run; the age check still runs', async () => {
+test('with nothing released to the father, the follow-up run is green only while a build is on its way', async () => {
+  const rejected = listed('9', { external: 'BETA_REJECTED', uploadedDate: '2026-12-20T10:00:00Z' });
+  await assert.rejects(look(fakeApi({ external: 'BETA_REJECTED', builds: [rejected] }).api), /yolda.*9.*BETA_REJECTED/);
+
+  await look(fakeApi({ external: 'WAITING_FOR_BETA_REVIEW', builds: [listed('9', { external: 'WAITING_FOR_BETA_REVIEW' })] }).api);
+  await look(fakeApi({ external: 'BETA_REJECTED', inReview: [[b8]], builds: [rejected] }).api);
+  const fresh = listed('10', { processingState: 'PROCESSING', external: 'PROCESSING', uploadedDate: '2026-12-30T20:00:00Z' });
+  await look(fakeApi({ external: 'BETA_REJECTED', builds: [fresh, rejected] }).api);
+  const stale = listed('10', { processingState: 'PROCESSING', external: 'PROCESSING', uploadedDate: '2026-12-27T20:00:00Z' });
+  await assert.rejects(look(fakeApi({ external: 'BETA_REJECTED', builds: [stale, rejected] }).api), /yolda/);
+});
+
+test('a problem with the newest build is only a warning while the father has a recent build', async () => {
   const logs = [];
-  const { api, calls } = fakeApi({ external: 'BETA_REJECTED', approved: approvedOn('2026-12-20T10:00:00Z') });
+  const { api } = fakeApi({ external: 'BETA_REJECTED', builds: [
+    listed('9', { external: 'BETA_REJECTED', uploadedDate: '2026-12-29T10:00:00Z' }),
+    listed('8', { external: 'IN_BETA_TESTING', uploadedDate: '2026-12-20T10:00:00Z' }),
+  ] });
   const report = await look(api, { log: (m) => logs.push(m) });
   assert.ok(logs.some((m) => /^::warning::.*BETA_REJECTED/.test(m)), logs.join('\n'));
-  assert.ok(calls.some((c) => c.path.includes('betaReviewState]=APPROVED')));
   assert.equal(report.result, undefined);
+  assert.equal(report.released, '8');
 });
 
 test('no valid build left at all stops the follow-up run', async () => {
-  await assert.rejects(look(fakeApi({ newest: [] }).api), /geçerli derleme yok/);
+  await assert.rejects(look(fakeApi({ builds: [] }).api), /geçerli derleme yok/);
+  const onlyProcessing = [listed('10', { processingState: 'PROCESSING', external: 'PROCESSING' })];
+  await assert.rejects(look(fakeApi({ builds: onlyProcessing }).api), /geçerli derleme yok/);
 });

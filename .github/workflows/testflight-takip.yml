@@ -1,13 +1,15 @@
 name: TestFlight takip
 
-# Every six hours: the newest TestFlight build goes to the father's group and, once Apple has no
-# other build in review, to beta review, so a build that had to wait is never left behind. Fails,
-# and GitHub emails, when the newest build he can install is more than 60 days old (TestFlight
-# builds stop opening at 90). Builds themselves come from ios.yml.
+# Once a day: the newest TestFlight build goes to the father's group, gets its release to the testers
+# turned on and, once Apple has no other build in review, goes to beta review, so a build that had to
+# wait is never left behind. Fails, and GitHub emails, when the newest build released to his group is
+# more than 45 days old (TestFlight builds stop opening at 90), or when none is released and none is
+# on its way (for example after a rejection). Once a day, so a lasting problem sends one email a day.
+# Builds themselves come from ios.yml.
 on:
   workflow_dispatch:
   schedule:
-    - cron: '41 */6 * * *'
+    - cron: '41 6 * * *'
 
 permissions:
   contents: read
@@ -20,7 +22,7 @@ jobs:
   takip:
     name: En yeni derlemeyi takip et
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
