@@ -1,7 +1,7 @@
-name: iPhone IPA
+name: iPhone TestFlight
 
-# Builds the iPhone app on a Mac in the cloud. With the three IOS_* secrets (see docs/IPA.md)
-# the IPA is signed Ad Hoc for the registered iPhone; without them it is an unsigned test build.
+# Builds the iPhone app on a Mac in the cloud. With the IOS_* and ASC_* secrets (see docs/TESTFLIGHT.md)
+# it is signed for the App Store and uploaded to TestFlight; without them it is an unsigned test build.
 on:
   workflow_dispatch:
   push:
@@ -26,7 +26,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 45
     env:
-      HAS_SIGNING: ${{ secrets.IOS_CERT_P12_BASE64 != '' && secrets.IOS_PROFILE_BASE64 != '' }}
+      HAS_SIGNING: ${{ secrets.IOS_CERT_P12_BASE64 != '' && secrets.IOS_PROFILE_BASE64 != '' && secrets.ASC_KEY_P8_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -49,7 +49,7 @@ jobs:
           sudo xcode-select -s "$XC"
           xcodebuild -version
 
-      - name: İmza (sertifika ve Ad Hoc profili)
+      - name: İmza (sertifika ve App Store profili)
         if: env.HAS_SIGNING == 'true'
         env:
           P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
@@ -104,13 +104,14 @@ jobs:
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
-            <key>method</key><string>release-testing</string>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
             <key>signingStyle</key><string>manual</string>
             <key>teamID</key><string>$TEAM</string>
             <key>signingCertificate</key><string>$IDENTITY</string>
             <key>provisioningProfiles</key>
             <dict><key>com.autovizyon.app</key><string>$UUID</string></dict>
-            <key>thinning</key><string>&lt;none&gt;</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
           </dict>
           </plist>
           EOF
@@ -134,13 +135,23 @@ jobs:
             archive | tee "$RUNNER_TEMP/xcodebuild.log" | grep -E '^(\*\*|error|warning: .*signing)|error:' || true
           test -d "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app" || { tail -80 "$RUNNER_TEMP/xcodebuild.log"; exit 1; }
 
-      - name: IPA (imzalı, Ad Hoc)
+      - name: TestFlight'a yükle
         if: env.HAS_SIGNING == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
         run: |
           set -euo pipefail
+          KEY="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          echo "$ASC_KEY_P8_BASE64" | base64 --decode > "$KEY"
+          # destination=upload in ExportOptions: the signed build goes straight to App Store Connect.
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/cikti"
-          mkdir -p ipa && mv "$RUNNER_TEMP"/cikti/*.ipa "ipa/AutoVizyon-$GITHUB_RUN_NUMBER.ipa"
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/cikti" \
+            -allowProvisioningUpdates -authenticationKeyPath "$KEY" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          rm -f "$KEY"
+          echo "::notice::Derleme $GITHUB_RUN_NUMBER TestFlight'a yüklendi. Apple'ın işlemesi 5-15 dakika sürer."
 
       - name: IPA (imzasız deneme)
         if: env.HAS_SIGNING != 'true'
@@ -149,9 +160,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/paket/Payload" ipa
           cp -R "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app" "$RUNNER_TEMP/paket/Payload/"
           (cd "$RUNNER_TEMP/paket" && zip -qry "$GITHUB_WORKSPACE/ipa/AutoVizyon-$GITHUB_RUN_NUMBER-imzasiz.ipa" Payload)
-          echo "::notice::İmza bilgileri eklenmediği için IPA imzasız. Kurulum için docs/IPA.md."
+          echo "::notice::İmza bilgileri eklenmediği için IPA imzasız. TestFlight için docs/TESTFLIGHT.md."
 
       - uses: actions/upload-artifact@v4
+        if: env.HAS_SIGNING != 'true'
         with:
           name: AutoVizyon-IPA-${{ github.run_number }}
           path: ipa/*.ipa

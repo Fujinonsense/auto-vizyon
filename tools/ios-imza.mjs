@@ -1,6 +1,6 @@
-// Apple signing for the Ad Hoc IPA, without a Mac.
+// Apple signing for the TestFlight build, without a Mac.
 //   node tools/ios-imza.mjs hazirla  → private key + certificate request (upload it to Apple)
-//   node tools/ios-imza.mjs yukle    → .cer + .mobileprovision from Apple → GitHub secrets → IPA build
+//   node tools/ios-imza.mjs yukle    → .cer + App Store .mobileprovision + API key → GitHub secrets → TestFlight build
 // Everything stays in ~/AutoVizyon-imza (or AV_IMZA_KLASOR); nothing here is committed.
 import forge from 'node-forge';
 import { spawnSync } from 'node:child_process';
@@ -63,6 +63,27 @@ export function makeP12(keyPem, certBuf, password) {
   return Buffer.from(forge.asn1.toDer(asn1).getBytes(), 'binary');
 }
 
+// App Store Connect names the downloaded key AuthKey_<key id>.p8.
+export const apiKeyId = (file) => (/AuthKey_([A-Z0-9]{10})\.p8$/i.exec(file || '') || [])[1] || '';
+
+// Everything the TestFlight build needs, checked before anything goes to GitHub.
+export function checkSigning({ keyPem, cert, profileBuf, apiKeyFile, issuerId, today = new Date().toISOString().slice(0, 10) }) {
+  if (!certMatchesKey(cert, keyPem)) {
+    throw new Error('Sertifika bu anahtarla yapılmamış. Apple\'a AutoVizyon.certSigningRequest dosyasını yükleyip inen .cer\'i koy.');
+  }
+  const profile = readProfile(profileBuf);
+  if (!profile.appId.endsWith(`.${BUNDLE_ID}`)) throw new Error(`Profil ${profile.appId || '?'} için yapılmış; App ID ${BUNDLE_ID} olmalı.`);
+  if (profile.devices) throw new Error('Bu bir Ad Hoc profil. TestFlight için App Store profili gerekir: Profiles → + → App Store Connect.');
+  if (!profile.certs.includes(cert.toString('base64'))) throw new Error('Profil başka bir sertifikayla yapılmış. Profili düzenle, bu sertifikayı seç, yeniden indir.');
+  if (profile.expires && profile.expires < today) throw new Error(`Profilin süresi ${profile.expires} tarihinde dolmuş.`);
+  const keyId = apiKeyId(apiKeyFile);
+  if (!keyId) throw new Error('API anahtarı dosyasının adı AuthKey_<anahtar kimliği>.p8 olmalı, App Store Connect\'ten indiği gibi.');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(issuerId || '')) {
+    throw new Error('Issuer ID eksik ya da yanlış. App Store Connect → Users and Access → Integrations sayfasındaki Issuer ID\'yi issuer-id.txt dosyasına yaz.');
+  }
+  return { profile, keyId };
+}
+
 function gh(args, input) {
   const r = spawnSync('gh', args, { input, encoding: 'utf8' });
   if (r.status !== 0) throw new Error(`gh ${args.slice(0, 2).join(' ')} olmadı: ${(r.stderr || r.error?.message || '').trim()}`);
@@ -83,12 +104,13 @@ function hazirla() {
   console.log(`${old ? 'Var olan anahtar kullanıldı' : 'Yeni anahtar yapıldı'}: ${keyPath}
 Sertifika isteği: ${csrPath}
 
-Şimdi developer.apple.com → Certificates, IDs & Profiles (docs/IPA.md, 2. adım):
+Şimdi developer.apple.com → Certificates, IDs & Profiles (docs/TESTFLIGHT.md, 1. adım):
   1. Certificates → + → Apple Distribution → bu istek dosyasını seç → Download. İnen .cer dosyasını bu klasöre koy.
   2. Identifiers → + → App IDs → App → Explicit: ${BUNDLE_ID}, açıklama: Auto Vizyon.
-  3. Devices → + → babanın iPhone'u (UDID).
-  4. Profiles → + → Ad Hoc → ${BUNDLE_ID} → bu sertifika → babanın iPhone'u → ad: Auto Vizyon Ad Hoc → Download.
+  3. Profiles → + → App Store Connect → ${BUNDLE_ID} → bu sertifika → ad: Auto Vizyon App Store → Download.
      İnen .mobileprovision dosyasını da bu klasöre koy.
+  4. App Store Connect → Users and Access → Integrations → Team Keys → + → App Manager → Download.
+     İnen AuthKey_….p8 dosyasını bu klasöre koy, sayfadaki Issuer ID'yi issuer-id.txt dosyasına yaz.
   5. node tools/ios-imza.mjs yukle`);
 }
 
@@ -98,29 +120,29 @@ function yukle() {
   const keyPem = readFileSync(keyPath, 'utf8');
   const cerPath = newest('.cer');
   const profilePath = newest('.mobileprovision');
+  const apiKeyPath = newest('.p8');
   if (!cerPath) throw new Error(`Apple'dan indirdiğin .cer dosyasını şu klasöre koy: ${DIR}`);
   if (!profilePath) throw new Error(`Apple'dan indirdiğin .mobileprovision dosyasını şu klasöre koy: ${DIR}`);
+  if (!apiKeyPath) throw new Error(`App Store Connect'ten indirdiğin AuthKey_….p8 dosyasını şu klasöre koy: ${DIR}`);
+  const issuerPath = join(DIR, 'issuer-id.txt');
+  const issuerId = (existsSync(issuerPath) ? readFileSync(issuerPath, 'utf8') : process.env.ASC_ISSUER_ID || '').trim();
 
   const cert = readFileSync(cerPath);
-  if (!certMatchesKey(cert, keyPem)) {
-    throw new Error(`${cerPath} bu anahtarla yapılmamış. Apple'a AutoVizyon.certSigningRequest dosyasını yükleyip inen .cer'i koy.`);
-  }
   const profileBuf = readFileSync(profilePath);
-  const p = readProfile(profileBuf);
-  if (!p.appId.endsWith(`.${BUNDLE_ID}`)) throw new Error(`Profil ${p.appId || '?'} için yapılmış; App ID ${BUNDLE_ID} olmalı.`);
-  if (!p.certs.includes(cert.toString('base64'))) throw new Error('Profil başka bir sertifikayla yapılmış. Profili düzenle, bu sertifikayı seç, yeniden indir.');
-  if (!p.devices) throw new Error('Profilde iPhone yok. Ad Hoc profil seçip babanın iPhone\'unu işaretle.');
-  if (p.expires && p.expires < new Date().toISOString().slice(0, 10)) throw new Error(`Profilin süresi ${p.expires} tarihinde dolmuş.`);
+  const { profile: p, keyId } = checkSigning({ keyPem, cert, profileBuf, apiKeyFile: apiKeyPath, issuerId });
 
   const password = randomBytes(18).toString('hex');
   gh(['secret', 'set', 'IOS_CERT_P12_BASE64', '--repo', REPO], makeP12(keyPem, cert, password).toString('base64'));
   gh(['secret', 'set', 'IOS_CERT_PASSWORD', '--repo', REPO], password);
   gh(['secret', 'set', 'IOS_PROFILE_BASE64', '--repo', REPO], profileBuf.toString('base64'));
+  gh(['secret', 'set', 'ASC_KEY_ID', '--repo', REPO], keyId);
+  gh(['secret', 'set', 'ASC_ISSUER_ID', '--repo', REPO], issuerId);
+  gh(['secret', 'set', 'ASC_KEY_P8_BASE64', '--repo', REPO], readFileSync(apiKeyPath).toString('base64'));
   gh(['workflow', 'run', 'ios.yml', '--repo', REPO, '--ref', 'main']);
-  console.log(`Profil: ${p.name} · ${p.devices} iPhone · ${p.expires} tarihine kadar geçerli
-GitHub'a üç gizli değer yazıldı, imzalı IPA derlemesi başladı (2-5 dakika).
-İzlemek için:  gh run watch --repo ${REPO}
-İndirmek için: gh run download --repo ${REPO} --dir ipa`);
+  console.log(`Profil: ${p.name} · ${p.expires} tarihine kadar geçerli · API anahtarı ${keyId}
+GitHub'a altı gizli değer yazıldı, derleme başladı. Derleme TestFlight'a yüklenir (5-10 dakika),
+Apple'ın işlemesi 5-15 dakika daha sürer.
+İzlemek için: gh run watch --repo ${REPO}`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

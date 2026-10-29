@@ -6,11 +6,11 @@ Toplam süre: ilk seferde yaklaşık 1 saat, bir kere yapılır. Her şeyi sen k
 
 | Ne | Ne işe yarar | Ücret |
 | --- | --- | --- |
-| Apple Developer (sende var) | Uygulamayı babanın iPhone'una kurmak | Yıllık üyelik |
+| Apple Developer (sende var) | Uygulamayı TestFlight ile babanın iPhone'una göndermek | Yıllık üyelik |
 | Anthropic API kredisi | Plakayı, ruhsatı, ehliyeti, kimliği okumak | Önceden yüklenen kredi, 5 dolar uzun süre yeter |
 | Google hesabı | Tablo, fotoğraf yedeği ve iMac'teki Excel'in kaynağı | Ücretsiz |
 | Microsoft 365 | iMac'te Excel | Abonelik |
-| GitHub | iPhone uygulamasını (IPA) derlemek | Ücretsiz (depo herkese açık) |
+| GitHub | iPhone uygulamasını derleyip TestFlight'a yüklemek | Ücretsiz (depo herkese açık) |
 
 **Claude aboneliği (Pro, Max) gerekmez ve işe yaramaz.** Uygulama Claude'a API anahtarıyla bağlanır; API kredisi abonelikten ayrı, console.anthropic.com'dan alınır.
 
@@ -51,10 +51,12 @@ API anahtarını, Google adresini ve Google anahtarını sorar, tek bir `AV1-…
 
 ## 4. Babanın iPhone'una kurma
 
-1. Uygulamayı [IPA.md](IPA.md) ile kur.
-2. Uygulamayı aç. "Hoş geldin ustam" ekranında **Başlayalım**'a bas.
-3. WhatsApp'taki kurulum kodunun üstüne basılı tut → **Kopyala**.
-4. Uygulamada sağ üstteki dişli (**Ayarlar**) → **Yapıştır**. "Kurulum tamam" yazar.
+Baban İstanbul'da olsa da olur; her şey WhatsApp'tan gider.
+
+1. Uygulamayı [TESTFLIGHT.md](TESTFLIGHT.md) ile TestFlight'a yükle ve babana TestFlight bağlantısını gönder.
+2. Baban bağlantıya dokunur. TestFlight yoksa App Store'dan alır, sonra **Kabul Et** → **Yükle**.
+3. Uygulamayı açar. "Hoş geldin ustam" ekranında **Başlayalım**'a basar.
+4. WhatsApp'taki kurulum kodunun üstüne basılı tutar → **Kopyala**. Uygulamada sağ üstteki dişli (**Ayarlar**) → **Yapıştır**. "Kurulum tamam" yazar.
 5. İlk fotoğrafta iPhone kamera izni sorar: **İzin Ver**.
 
 ## 5. iMac'te Excel (Microsoft 365, 10 dakika)
@@ -85,6 +87,5 @@ Telefondan kaydedilen iş 1-2 dakika içinde bu tabloda görünür. Excel'deki b
 | Bulut simgesi sarı, "Google adresine ulaşılamadı" | İnterneti kontrol et; Ayarlar → **Bağlantıyı dene**. |
 | "Dağıtımda erişim Herkes seçilmemiş" | Apps Script → Dağıt → Dağıtımları yönet → düzenle → Erişimi olan: Herkes. |
 | Kamera açılmıyor | iPhone Ayarlar → Auto Vizyon → Kamera açık mı; ya da kameradaki **Fotoğraf çek** ile telefonun kamerasını kullan. |
-| Uygulama açılmıyor, "Geliştirici Modu gerekli" | iPhone Ayarlar → Gizlilik ve Güvenlik → Geliştirici Modu → Aç. |
-| Uygulama bir yıl sonra açılmıyor | İmza doldu: [IPA.md](IPA.md) → "Bir yıl dolmadan". |
+| TestFlight'ta "Bu derlemenin süresi doldu" | 90 gün dolmuş: [TESTFLIGHT.md](TESTFLIGHT.md) → "90 gün". |
 | iMac'teki Excel yenilenmiyor | Menü çubuğundaki Google Drive simgesi eşitleniyor mu bak; Excel'de **Veri → Tümünü Yenile**. |
