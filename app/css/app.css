@@ -79,6 +79,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 h1, h2, h3, .ftitle, .empty h2 { text-wrap: balance; }
 p, .muted, .doc-row span, .banner span { text-wrap: pretty; }
@@ -792,6 +793,8 @@ button.photo-main { display: grid; place-content: center; justify-items: center;
 .bar { height: 10px; border-radius: 999px; background: var(--fill); overflow: hidden; }
 .bar span { display: block; height: 100%; border-radius: inherit; background: var(--ok); transition: width 0.4s ease-out; }
 .due-amount { color: var(--due); }
+.ok-text { color: var(--ok); font-weight: 600; }
+.due-text { color: var(--due); font-weight: 600; }
 .jobrow.on b { color: var(--gold-ink); }
 .excel-card { display: grid; gap: 10px; }
 .excel-head { display: flex; align-items: center; gap: 12px; padding-top: 10px; }
