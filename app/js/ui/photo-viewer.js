@@ -2,6 +2,7 @@
 import { deletePhoto, setCover } from '../data/repo.js';
 import { folderTitle } from '../lib/format.js';
 import { h, icon, toast, confirmSheet } from './dom.js';
+import { shareFiles } from '../native.js';
 
 export const KIND_LABEL = {
   arac: 'Araç', once: 'Hasar öncesi', sonra: 'Hasar sonrası', ruhsat: 'Ruhsat', ehliyet: 'Ehliyet', kimlik: 'Kimlik',
@@ -10,21 +11,9 @@ export const KIND_LABEL = {
 const fileName = (folder, i) => `${(folder?.plate || 'arac').replace(/\s/g, '')}-${i + 1}.jpg`;
 
 // Shares through the phone's share sheet; falls back to downloading where files can't be shared.
-export async function sharePhotos(photos, folder) {
-  const files = photos.map((p, i) => new File([p.blob], fileName(folder, i), { type: 'image/jpeg' }));
-  if (navigator.canShare?.({ files })) {
-    try {
-      await navigator.share({ files, title: folder ? folderTitle(folder) : 'Auto Vizyon' });
-    } catch {
-      // closed by the user
-    }
-    return;
-  }
-  for (const f of files) {
-    const url = URL.createObjectURL(f);
-    h('a', { href: url, download: f.name }).click();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  }
+export function sharePhotos(photos, folder) {
+  const files = photos.map((p, i) => ({ name: fileName(folder, i), blob: new Blob([p.blob], { type: 'image/jpeg' }) }));
+  return shareFiles(files, folder ? folderTitle(folder) : 'Auto Vizyon');
 }
 
 export function openPhotoViewer(photos, index, { folder } = {}) {

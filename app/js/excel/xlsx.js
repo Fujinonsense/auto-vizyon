@@ -3,6 +3,7 @@ import { JOB_COLUMNS, FOLDER_COLUMNS, jobToRow, folderToRow, rowToJob, rowToFold
 import { monthlySummary } from '../lib/stats.js';
 import { formatMonth } from '../lib/format.js';
 import { getFolder, saveFolder, saveJob, findFolderByPlate } from '../data/repo.js';
+import { shareFiles } from '../native.js';
 
 const MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const MONEY = '#,##0.00 "₺"';
@@ -91,20 +92,4 @@ export async function importRecords({ folders = [], jobs = [] }) {
 }
 
 // iPhone: the share sheet (Dosyalar'a kaydet, WhatsApp, Mail); elsewhere a normal download.
-export async function shareOrDownload(blob, filename) {
-  const file = new File([blob], filename, { type: blob.type });
-  if (navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: filename });
-      return;
-    } catch (e) {
-      if (e?.name === 'AbortError') return;
-    }
-  }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-}
+export const shareOrDownload = (blob, filename) => shareFiles([{ name: filename, blob }], filename);
