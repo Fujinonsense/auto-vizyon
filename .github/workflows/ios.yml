@@ -2,8 +2,17 @@ name: iPhone TestFlight
 
 # Builds the iPhone app on a Mac in the cloud. With the IOS_* and ASC_* secrets (see docs/TESTFLIGHT.md)
 # it is signed for the App Store and uploaded to TestFlight; without them it is an unsigned test build.
+# Every uploaded build then goes to the father's external group. A TestFlight build lasts 90 days, so a
+# fresh one is built on the 1st of every month.
 on:
   workflow_dispatch:
+    inputs:
+      dagit_derleme:
+        description: 'Yeni derleme yapma, sadece bu numaralı derlemeyi Babam grubuna gönder (boş: derle ve gönder)'
+        required: false
+        default: ''
+  schedule:
+    - cron: '0 6 1 * *'
   push:
     branches: [main]
     paths:
@@ -23,8 +32,11 @@ concurrency:
 
 jobs:
   ipa:
+    if: ${{ !inputs.dagit_derleme }}
     runs-on: macos-15
     timeout-minutes: 45
+    outputs:
+      uploaded: ${{ steps.upload.outcome == 'success' }}
     env:
       HAS_SIGNING: ${{ secrets.IOS_CERT_P12_BASE64 != '' && secrets.IOS_PROFILE_BASE64 != '' && secrets.ASC_KEY_P8_BASE64 != '' }}
     steps:
@@ -136,6 +148,7 @@ jobs:
           test -d "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app" || { tail -80 "$RUNNER_TEMP/xcodebuild.log"; exit 1; }
 
       - name: TestFlight'a yükle
+        id: upload
         if: env.HAS_SIGNING == 'true'
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -173,3 +186,41 @@ jobs:
       - name: Anahtar zincirini sil
         if: always() && env.KEYCHAIN != ''
         run: security delete-keychain "$KEYCHAIN" || true
+
+  # Waits for Apple to process the build (5-30 minutes), adds it to the "Babam" group with its
+  # "What to Test" note and sends it to beta review if it needs one (tools/testflight.mjs).
+  dagit:
+    name: Babam grubuna gönder
+    needs: ipa
+    if: ${{ always() && (inputs.dagit_derleme || needs.ipa.outputs.uploaded == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Derlemeyi Babam grubuna ekle, incelemeye gönder
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          DERLEME: ${{ inputs.dagit_derleme || github.run_number }}
+        run: node tools/testflight.mjs "$DERLEME"
+
+      # GitHub stops scheduled workflows in a public repository after 60 days without a commit.
+      - name: Aylık zamanlamayı canlı tut
+        if: github.event_name == 'schedule'
+        run: |
+          set -euo pipefail
+          echo "Son aylık TestFlight yenilemesi: $(date -u +%F), derleme $GITHUB_RUN_NUMBER" > .github/son-yenileme.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/son-yenileme.txt
+          git commit -m "TestFlight aylık yenileme ($(date -u +%F))"
+          git pull --rebase --quiet
+          git push

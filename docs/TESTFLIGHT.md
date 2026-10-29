@@ -69,8 +69,8 @@ Kurulum kodu için: [KURULUM.md](KURULUM.md), 3. adım.
 
 ## Güncelleme, 90 gün, yıllık yenileme
 
-- **Yeni sürüm**: kod değişince GitHub yeni derlemeyi yükler. Dahili grup kendiliğinden alır. Harici grupta App Store Connect → TestFlight → `Babam` → derlemeyi ekle; aynı sürümün sonraki derlemeleri genelde hızlı onaylanır. Babanın telefonuna TestFlight getirir.
-- **90 gün**: her TestFlight derlemesi 90 gün geçerli. Süre dolmadan yeni derleme yükle: github.com'da depo → **Actions → iPhone TestFlight → Run workflow**, sonra yeni derlemeyi `Babam` grubuna ekle.
+- **Yeni sürüm**: kod değişince GitHub yeni derlemeyi yükler. Dahili grup (`Ben`) kendiliğinden alır. "Babam grubuna gönder" işi, Apple derlemeyi işleyince onu `Babam` grubuna ekler, "What to Test" notunu yazar ve gerekiyorsa beta incelemesine gönderir (`tools/testflight.mjs`). Babanın telefonuna TestFlight getirir; TestFlight'ta Auto Vizyon için **Otomatik Güncellemeler** açık olmalı.
+- **90 gün**: her TestFlight derlemesi 90 gün geçerli. GitHub her ayın 1'inde kendiliğinden yeni derleme yapıp gönderir; aynı iş depoya `.github/son-yenileme.txt` yazar, çünkü GitHub 60 gün hiç commit görmeyen açık depolarda zamanlanmış işleri durdurur. Elle göndermek için: github.com'da depo → **Actions → iPhone TestFlight → Run workflow** (derleme numarası girersen yeni derleme yapmadan sadece onu gönderir).
 - **Bir yıl dolmadan** (29 Ekim 2027): Certificates'ta yeni Apple Distribution sertifikası (`hazirla` aynı anahtarla yeni istek yazar), Profiles'ta profili bu sertifikayla yeniden oluştur, ikisini klasöre koy, `node tools/ios-imza.mjs yukle`. API anahtarının süresi dolmaz.
 
 ## Sorun olursa
