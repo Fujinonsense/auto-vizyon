@@ -52,11 +52,9 @@ export async function prepareImage(blob) {
   return { blob: await toJpeg(big, 0.82), thumb: await toJpeg(small, 0.72), width, height };
 }
 
-export function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(',')[1]);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
+export async function blobToBase64(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
 }
