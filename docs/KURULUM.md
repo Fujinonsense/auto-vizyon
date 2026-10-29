@@ -10,7 +10,7 @@ Toplam süre: ilk seferde yaklaşık 1 saat, bir kere yapılır. Her şeyi sen k
 | Anthropic API kredisi | Plakayı, ruhsatı, ehliyeti, kimliği okumak | Önceden yüklenen kredi, 5 dolar uzun süre yeter |
 | Google hesabı | Tablo, fotoğraf yedeği ve iMac'teki Excel'in kaynağı | Ücretsiz |
 | Microsoft 365 | iMac'te Excel | Abonelik |
-| GitHub | iPhone uygulamasını (IPA) derlemek | Gizli depoda derleme dakikası (bkz. IPA.md, 0. adım) |
+| GitHub | iPhone uygulamasını (IPA) derlemek | Ücretsiz (depo herkese açık) |
 
 **Claude aboneliği (Pro, Max) gerekmez ve işe yaramaz.** Uygulama Claude'a API anahtarıyla bağlanır; API kredisi abonelikten ayrı, console.anthropic.com'dan alınır.
 

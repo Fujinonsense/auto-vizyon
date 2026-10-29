@@ -13,11 +13,7 @@ Toplam süre: ilk seferde yaklaşık 40 dakika (10 dakikası derlemeyi beklemek)
    ```bash
    cd auto-vizyon && npm ci
    ```
-2. GitHub'ın derlemeyi başlatabildiğinden emin ol. İlk denemede GitHub şunu dedi: "recent account payments have failed or your spending limit needs to be increased". Yani gizli depolarda derleme hesabın ödeme ayarı yüzünden kapalı.
-   - github.com → sağ üstte profil → **Settings → Billing and licensing**.
-   - **Payment history / Payment information**: başarısız ödeme varsa kartı güncelle.
-   - **Budgets and alerts** (ya da **Spending limit**): Actions için 0 dolardan büyük bir sınır koy (ör. 5 dolar). Bir derleme yaklaşık 10 dakika macOS süresi harcar, ücretsiz dakikalar bittiyse 1 dolardan az tutar.
-   - Sonra dene: `gh workflow run ios.yml --repo Fujinonsense/auto-vizyon`. Hâlâ aynı uyarı çıkarsa GitHub Support'a yaz.
+2. Depo herkese açık, bu yüzden GitHub derlemeyi ücretsiz yapar; ödeme ayarı gerekmez. Herkes kodu ve derlenen IPA'yı görebilir. Şifre niteliğinde bir şey yok: API anahtarı ve Google adresi sadece kurulum kodunda, imza anahtarı senin bilgisayarında ve GitHub'ın gizli değerlerinde durur. İmzalı IPA'da Apple takım numaran ve babanın iPhone'unun UDID'si yazar; bunlarla uygulama başka telefona kurulamaz.
 
 ## 1. Babanın iPhone'unun UDID'si (2 dakika)
 
