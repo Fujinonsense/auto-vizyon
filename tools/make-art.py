@@ -9,8 +9,34 @@ src, out = sys.argv[1], sys.argv[2]
 ICONS = ['ruhsat', 'ehliyet', 'kimlik', 'camera', 'car', 'coins']
 sheet = Image.open(f'{src}/icons.png').convert('RGBA')
 cw, ch = sheet.width // 3, sheet.height // 2
+solid = sheet.getchannel('A').point(lambda a: 255 if a > 24 else 0)
+
+
+def empty(box):
+    return solid.crop(box).getbbox() is None
+
+
+def icon_box(x0, y0, x1, y1):
+    # The model lets an icon cross its cell line (the car's nose does). Start in the middle of the cell
+    # and widen to the first empty column and row on each side, so the icon stays whole and a
+    # neighbour's overhang, which sits past an empty gap, stays out.
+    cx, cy = (x0 + x1) // 2, (y0 + y1) // 2
+    if empty((cx, y0, cx + 1, y1)):
+        return x0, y0, x1, y1
+    left, right = cx, cx + 1
+    while left > 0 and not empty((left - 1, y0, left, y1)): left -= 1
+    while right < sheet.width and not empty((right, y0, right + 1, y1)): right += 1
+    if empty((left, cy, right, cy + 1)):
+        return left, y0, right, y1
+    top, bottom = cy, cy + 1
+    while top > 0 and not empty((left, top - 1, right, top)): top -= 1
+    while bottom < sheet.height and not empty((left, bottom, right, bottom + 1)): bottom += 1
+    return left, top, right, bottom
+
+
 for i, name in enumerate(ICONS):
-    cell = sheet.crop(((i % 3) * cw, (i // 3) * ch, (i % 3 + 1) * cw, (i // 3 + 1) * ch))
+    box = icon_box((i % 3) * cw, (i // 3) * ch, (i % 3 + 1) * cw, (i // 3 + 1) * ch)
+    cell = sheet.crop(box)
     cell = cell.crop(cell.getchannel('A').point(lambda a: 255 if a > 24 else 0).getbbox())
     side = max(cell.size)
     square = Image.new('RGBA', (side, side), (0, 0, 0, 0))

@@ -106,7 +106,7 @@ export async function settingsScreen(params, ctx) {
 
     // WhatsApp
     const wa = h('textarea', { rows: 3, value: s.waTemplate, onchange: () => saved('waTemplate', 'Mesaj kaydedildi')(wa.value) });
-    const waCard = card('WhatsApp mesajı', field('"Aracınız hazır" mesajı', wa, '{ad} müşterinin adı, {plaka} aracın plakası olarak yazılır.'));
+    const waCard = card('WhatsApp mesajı', field('"Aracınız hazır" mesajı', wa, '{ad} müşterinin adı, {hitap} Bey ya da Hanım, {plaka} aracın plakası olarak yazılır.'));
 
     // Backup
     const restoreInput = h('input', {

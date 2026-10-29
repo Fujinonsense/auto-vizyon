@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { folderSections, sectionCopyText, folderCopyText, waLink, telLink } from '../app/js/lib/share.js';
+import { folderSections, sectionCopyText, folderCopyText, readyMessage, waLink, telLink } from '../app/js/lib/share.js';
+import { DEFAULT_SETTINGS } from '../app/js/data/repo.js';
 
 const folder = {
   name: 'Uğurcan Kaya', phone: '05324182790', plate: '34 NMA 887', brand: 'Audi', model: 'A7', color: 'Siyah',
@@ -33,10 +34,33 @@ test('folderCopyText: every section that has something, separated by a blank lin
   assert.ok(!text.includes('Ehliyet'));
 });
 
-test('waLink: Turkish mobile number and the filled template', () => {
+test('readyMessage: the default greets by first name with Bey or Hanım', () => {
+  const t = DEFAULT_SETTINGS.waTemplate;
+  assert.equal(readyMessage({ ...folder, hitap: 'Bey' }, t), 'Merhaba Uğurcan Bey, aracınız hazır, teslim alabilirsiniz.');
+  assert.equal(readyMessage({ name: 'Yiğit Emre Örsyürek', hitap: 'Hanım' }, t), 'Merhaba Yiğit Emre Hanım, aracınız hazır, teslim alabilirsiniz.');
+  assert.equal(readyMessage({ name: 'Kaya', hitap: 'Bey' }, t), 'Merhaba Kaya Bey, aracınız hazır, teslim alabilirsiniz.');
+});
+
+test('readyMessage: a name read off a document in capitals is written the Turkish way', () => {
+  const t = DEFAULT_SETTINGS.waTemplate;
+  assert.equal(readyMessage({ name: 'UĞURCAN KAYA', hitap: 'Bey' }, t), 'Merhaba Uğurcan Bey, aracınız hazır, teslim alabilirsiniz.');
+  assert.equal(readyMessage({ name: 'IŞIL İNCE', hitap: 'Hanım' }, t), 'Merhaba Işıl Hanım, aracınız hazır, teslim alabilirsiniz.');
+});
+
+test('readyMessage: no stray spaces when Bey/Hanım or the name is missing', () => {
+  const t = DEFAULT_SETTINGS.waTemplate;
+  assert.equal(readyMessage(folder, t), 'Merhaba Uğurcan, aracınız hazır, teslim alabilirsiniz.');
+  assert.equal(readyMessage({ name: '', hitap: 'Bey' }, t), 'Merhaba, aracınız hazır, teslim alabilirsiniz.');
+});
+
+test('readyMessage: an own template can use the full name and the plate', () => {
+  assert.equal(readyMessage(folder, '{adsoyad}, {plaka} plakalı aracınız hazır.'), 'Uğurcan Kaya, 34 NMA 887 plakalı aracınız hazır.');
+});
+
+test('waLink: Turkish mobile number and the ready message', () => {
   assert.equal(
-    waLink(folder, 'Merhaba {ad}, {plaka} plakalı aracınız hazır.'),
-    `https://wa.me/905324182790?text=${encodeURIComponent('Merhaba Uğurcan Kaya, 34 NMA 887 plakalı aracınız hazır.')}`,
+    waLink({ ...folder, hitap: 'Bey' }, DEFAULT_SETTINGS.waTemplate),
+    `https://wa.me/905324182790?text=${encodeURIComponent('Merhaba Uğurcan Bey, aracınız hazır, teslim alabilirsiniz.')}`,
   );
   assert.equal(waLink({ ...folder, phone: '' }, 'x'), '');
 });

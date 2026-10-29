@@ -1,8 +1,8 @@
 // One customer's folder: call / WhatsApp, jobs, every field with its copy button, photos.
-import { getFolder, jobsForFolder, listPhotos, onChange, deleteFolder, addPhoto, getSettings } from '../../data/repo.js';
-import { folderSections, sectionCopyText, folderCopyText, waLink, telLink } from '../../lib/share.js';
+import { getFolder, jobsForFolder, listPhotos, onChange, deleteFolder, addPhoto, getSettings, saveFolder } from '../../data/repo.js';
+import { folderSections, sectionCopyText, folderCopyText, readyMessage, waLink, telLink } from '../../lib/share.js';
 import { formatMoney, formatDate, formatPhone } from '../../lib/format.js';
-import { h, icon, toast, confirmSheet, copyRow, copyText } from '../dom.js';
+import { h, icon, toast, confirmSheet, copyRow, copyText, sheet } from '../dom.js';
 import { plateChip, urlScope, statusBadge } from '../parts.js';
 import { setTopbar, setTab } from '../chrome.js';
 import { go } from '../router.js';
@@ -16,6 +16,34 @@ const GROUPS = [['Araç', ['arac']], ['Hasar öncesi', ['once']], ['Hasar sonras
 
 function quick(label, ic, attrs) {
   return h(attrs.href ? 'a' : 'button', { class: 'qa-btn', type: attrs.href ? null : 'button', ...attrs }, icon(ic, 26), h('span', {}, label));
+}
+
+// "Aracınız hazır": Bey or Hanım is picked once per customer, then the message and, under it, the
+// link that opens the customer's WhatsApp chat with the message typed in.
+function openReadySheet(folder, template) {
+  let hitap = folder.hitap || '';
+  const text = h('p', { class: 'wa-text' });
+  const slot = h('div');
+  const chips = h('div', { class: 'chips' }, ['Bey', 'Hanım'].map((v) => h('button', {
+    class: 'chip', type: 'button', 'data-v': v,
+    onclick: () => { hitap = v; draw(); saveFolder({ id: folder.id, hitap: v }); },
+  }, v)));
+  function draw() {
+    const f = { ...folder, hitap };
+    text.textContent = readyMessage(f, template);
+    chips.querySelectorAll('.chip').forEach((c) => {
+      c.classList.toggle('on', c.dataset.v === hitap);
+      c.setAttribute('aria-pressed', String(c.dataset.v === hitap));
+    });
+    slot.replaceChildren(hitap
+      ? h('a', { class: 'btn primary block', href: waLink(f, template), target: '_blank', rel: 'noopener', onclick: () => setTimeout(() => s.close(), 400) },
+        icon('brand-whatsapp', 22), "WhatsApp'ta aç")
+      : h('p', { class: 'muted small' }, 'Önce Bey ya da Hanım seç.'));
+  }
+  const s = sheet(h('div', { class: 'stack' },
+    h('span', { class: 'muted small' }, 'Bey mi, Hanım mı?'), chips, text, slot,
+    h('p', { class: 'muted small' }, "WhatsApp'ta mesaj yazılı gelir, göndere basman yeter.")), { title: 'Aracınız hazır' });
+  draw();
 }
 
 export async function folderView({ id }, ctx) {
@@ -64,7 +92,7 @@ export async function folderView({ id }, ctx) {
         folder.phone && h('p', { class: 'fphone-big' }, icon('phone', 18), formatPhone(folder.phone))),
       h('div', { class: 'qa' },
         quick('Ara', 'phone', tel ? { href: tel } : { onclick: noPhone }),
-        quick('WhatsApp', 'brand-whatsapp', wa ? { href: wa, target: '_blank', rel: 'noopener' } : { onclick: noPhone }),
+        quick('WhatsApp', 'brand-whatsapp', { onclick: wa ? () => openReadySheet(folder, settings.waTemplate) : noPhone }),
         quick('Hepsini kopyala', 'copy', { onclick: () => copyText(folderCopyText(folder), 'Bütün bilgiler') })));
 
     // Jobs

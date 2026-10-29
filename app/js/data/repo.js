@@ -13,7 +13,7 @@ export const DEFAULT_SETTINGS = {
   vatMode: 'haric',
   scriptUrl: '',
   token: '',
-  waTemplate: 'Merhaba {ad}, {plaka} plakalı aracınızın işlemi tamamlandı. Auto Vizyon Boyasız Hasar Onarım',
+  waTemplate: 'Merhaba {ad} {hitap}, aracınız hazır, teslim alabilirsiniz.',
   lastPull: 0,
 };
 

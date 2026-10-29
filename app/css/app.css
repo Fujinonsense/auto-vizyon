@@ -623,6 +623,7 @@ button.photo-main { display: grid; place-content: center; justify-items: center;
 .doc-row.err .grow > span { color: var(--warn); }
 .btn-art { width: 26px; height: 26px; object-fit: contain; margin-left: -6px; }
 .empty-art { width: 150px; height: 150px; object-fit: contain; filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.22)); }
+.wa-text { margin: 0; padding: 14px 16px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); line-height: 1.45; }
 
 /* Welcome (first launch) */
 .welcome { position: fixed; inset: 0; z-index: 90; overflow: hidden; background: #000; color: #fff; transition: opacity 0.25s ease-out; }

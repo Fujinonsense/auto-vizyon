@@ -41,11 +41,32 @@ export function folderCopyText(folder) {
   return folderSections(folder).map((s) => sectionCopyText(s.rows)).filter(Boolean).join('\n\n');
 }
 
+// Names read off a document come in capitals; a greeting writes them the Turkish way (IŞIL → Işıl).
+function niceName(word) {
+  if (word !== word.toLocaleUpperCase('tr')) return word;
+  const lower = word.toLocaleLowerCase('tr');
+  return lower.charAt(0).toLocaleUpperCase('tr') + lower.slice(1);
+}
+
+// The "aracınız hazır" text: {ad} first name(s), {hitap} Bey or Hanım, {adsoyad} full name, {plaka}.
+export function readyMessage(folder, template) {
+  const words = String(folder.name || '').trim().split(/\s+/).filter(Boolean);
+  const given = (words.length > 1 ? words.slice(0, -1) : words).map(niceName).join(' ');
+  return template
+    .replaceAll('{ad}', given)
+    .replaceAll('{hitap}', given ? folder.hitap || '' : '')
+    .replaceAll('{adsoyad}', folder.name || '')
+    .replaceAll('{plaka}', folder.plate || '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ ([,.!?])/g, '$1')
+    .trim();
+}
+
+// Opens the customer's WhatsApp chat with the ready message typed in; only "send" is left.
 export function waLink(folder, template) {
   const number = waNumber(folder.phone);
   if (!number) return '';
-  const text = template.replaceAll('{ad}', folder.name || '').replaceAll('{plaka}', folder.plate || '').trim();
-  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+  return `https://wa.me/${number}?text=${encodeURIComponent(readyMessage(folder, template))}`;
 }
 
 export function telLink(phone) {
