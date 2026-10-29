@@ -23,6 +23,23 @@ function row({ folder, jobs, cover }, scope) {
     h('span', { class: 'chev', 'aria-hidden': 'true' }, icon('chevron-right', 20)));
 }
 
+// Once per launch the PDR light sweeps over the car (Higgsfield video). It only shows once it
+// really plays and fades out on its last frame, which is the still underneath; if autoplay is
+// blocked (low power mode) or motion is reduced, the still simply stays.
+function introVideo() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return null;
+  const v = h('video', { class: 'hero-bg hero-video', src: 'img/hero.mp4', autoplay: true, muted: true, playsinline: true, preload: 'auto', 'aria-hidden': 'true' });
+  v.muted = true;
+  v.setAttribute('muted', '');
+  v.setAttribute('playsinline', '');
+  v.addEventListener('playing', () => v.classList.add('on'));
+  v.addEventListener('ended', () => {
+    v.classList.remove('on');
+    setTimeout(() => v.remove(), 600);
+  });
+  return v;
+}
+
 function stat(value, label, onclick) {
   return h(onclick ? 'button' : 'div', { class: 'stat', type: onclick && 'button', onclick }, h('b', {}, value), h('span', {}, label));
 }
@@ -39,7 +56,7 @@ export async function listScreen(params, ctx) {
   heroPlayed = true;
   const hero = h('section', { class: `hero${play ? ' play' : ''}` },
     h('img', { class: 'hero-bg', src: 'img/hero.webp', alt: '', fetchpriority: 'high' }),
-    h('span', { class: 'hero-sweep', 'aria-hidden': 'true' }),
+    play && introVideo(),
     h('img', { class: 'hero-logo', src: 'img/lockup-dark.png', alt: 'Auto Vizyon Boyasız Hasar Onarım' }),
     stats);
 

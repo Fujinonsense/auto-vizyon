@@ -196,17 +196,11 @@ body.home main#screen { padding-top: 0; }
     linear-gradient(0deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 34%);
 }
 .hero > :not(.hero-bg) { position: relative; z-index: 2; }
+.hero > video.hero-bg { z-index: 0; }
 .hero-logo { align-self: center; width: min(70%, 280px); height: auto; }
-.hero-sweep {
-  position: absolute !important;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(100deg, transparent 38%, rgba(255, 233, 180, 0.26) 50%, transparent 62%);
-  transform: translateX(-110%);
-}
-.hero.play .hero-sweep { animation: sweep 1.2s 0.2s ease-out forwards; }
+.hero-video { opacity: 0; transition: opacity 0.5s ease-out; }
+.hero-video.on { opacity: 1; }
 .hero.play .hero-logo { animation: rise 0.7s ease-out both; }
-@keyframes sweep { to { transform: translateX(110%); } }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
 .hero-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .stat {

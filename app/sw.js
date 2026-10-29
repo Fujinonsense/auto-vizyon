@@ -18,7 +18,10 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
+  const url = new URL(request.url);
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // Safari streams video with Range requests, which a cached full response can't answer.
+  if (request.headers.has('range') || url.pathname.endsWith('.mp4')) return;
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {
       const cached = await cache.match(request, { ignoreSearch: true });
