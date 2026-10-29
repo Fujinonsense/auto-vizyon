@@ -7,6 +7,8 @@ import { folderView } from './ui/screens/folder-view.js';
 import { earningsScreen } from './ui/screens/earnings.js';
 import { settingsScreen } from './ui/screens/settings.js';
 import { maybeShowWelcome } from './ui/welcome.js';
+import { initSyncUi } from './ui/sync-ui.js';
+import { startAutoSync } from './sync/google.js';
 
 buildTabbar();
 route('/', listScreen);
@@ -16,8 +18,10 @@ route('/kazanc', earningsScreen);
 route('/ayarlar', settingsScreen);
 route('/klasor/:id/duzenle', editScreen);
 route('/klasor/:id/belge/:kind', editScreen);
+initSyncUi();
 startRouter();
 maybeShowWelcome();
+startAutoSync();
 
 // No offline cache during local development, so edits show up on reload.
 const local = ['localhost', '127.0.0.1'].includes(location.hostname);

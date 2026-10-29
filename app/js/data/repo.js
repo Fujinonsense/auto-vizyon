@@ -140,6 +140,34 @@ export async function deleteJob(id) {
   emit({ type: 'job', id, folderId: job?.folderId, deleted: true });
 }
 
+export const getJob = (id) => get('jobs', id);
+
+export async function allRecords() {
+  const [folders, jobs] = await Promise.all([all('folders'), all('jobs')]);
+  return { folders, jobs };
+}
+
+// Sync bookkeeping: never queued, never bumps updatedAt.
+export async function markPhotoUploaded(id, driveFileId) {
+  await write(['photos'], (s) => {
+    s.photos.get(id).onsuccess = (e) => {
+      const p = e.target.result;
+      if (p) s.photos.put({ ...p, driveFileId });
+    };
+  });
+}
+
+export async function setFolderDrive(id, driveUrl) {
+  if (!id || !driveUrl) return;
+  await write(['folders'], (s) => {
+    s.folders.get(id).onsuccess = (e) => {
+      const f = e.target.result;
+      if (f && f.driveUrl !== driveUrl) s.folders.put({ ...f, driveUrl });
+    };
+  });
+  emit({ type: 'remote' });
+}
+
 export async function jobsForFolder(folderId) {
   return sortJobs(await byIndex('jobs', 'folderId', folderId));
 }

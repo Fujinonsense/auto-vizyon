@@ -143,7 +143,7 @@ export async function settingsScreen(params, ctx) {
       h('button', { class: 'btn block', type: 'button', onclick: () => showWelcome() }, icon('star', 20), 'Karşılama ekranını göster'),
       h('p', { class: 'muted small' }, 'Auto Vizyon 1.0, sadece bu telefonda çalışır.'));
 
-    root.replaceChildren(setupCard, aiCard, vatCard, waCard, ...settingsExtras.map((make) => make(render)), backupCard, appCard);
+    root.replaceChildren(setupCard, aiCard, vatCard, waCard, ...settingsExtras.map((make) => make({ settings: s, rerender: render })), backupCard, appCard);
   }
 
   await render();

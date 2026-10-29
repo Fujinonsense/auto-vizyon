@@ -105,7 +105,9 @@ export async function folderView({ id }, ctx) {
       }),
       h('div', { class: 'btn-row' },
         h('button', { class: 'btn small', type: 'button', onclick: () => addPhotos('once', jobs) }, icon('camera-plus', 20), 'Öncesi'),
-        h('button', { class: 'btn small primary', type: 'button', onclick: () => addPhotos('sonra', jobs) }, icon('camera-plus', 20), 'Sonrası')));
+        h('button', { class: 'btn small primary', type: 'button', onclick: () => addPhotos('sonra', jobs) }, icon('camera-plus', 20), 'Sonrası')),
+      folder.driveUrl && h('a', { class: 'btn small ghost', href: folder.driveUrl, target: '_blank', rel: 'noopener', style: { marginTop: '8px' } },
+        icon('cloud-check', 18), "Google Drive'daki yedeği aç"));
 
     const del = h('button', {
       class: 'btn danger ghost block', type: 'button',
