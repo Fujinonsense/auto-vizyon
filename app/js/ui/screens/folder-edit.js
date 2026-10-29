@@ -18,6 +18,7 @@ const COPY_FROM_EXISTING = ['name', 'phone', 'brand', 'model', 'modelFull', 'col
 
 export function folderForm(draft, ctx, { autoDoc } = {}) {
   const f = draft.folder;
+  if (f.phone) f.phone = formatPhone(f.phone);
   const scope = urlScope();
   const fields = new Map();
   let dirty = draft.mode === 'new';
@@ -166,12 +167,12 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
     for (const key of COPY_FROM_EXISTING) {
       const cur = f[key];
       const empty = cur == null || cur === '' || (typeof cur === 'object' && !Object.values(cur).some(Boolean));
-      if (empty && ex[key]) f[key] = structuredClone(ex[key]);
+      if (empty && ex[key]) f[key] = key === 'phone' ? formatPhone(ex.phone) : structuredClone(ex[key]);
     }
     [...fields.keys()].forEach((p) => paint(p));
     banner.replaceChildren(
-      icon('folders', 24),
-      h('div', { class: 'grow' }, h('b', {}, 'Bu araç daha önce gelmiş'), h('span', {}, `Yeni iş "${folderTitle(ex)}" klasörüne eklenecek.`)),
+      h('div', { class: 'banner-text' }, icon('folders', 24),
+        h('div', { class: 'grow' }, h('b', {}, 'Bu araç daha önce gelmiş'), h('span', {}, `Yeni iş "${folderTitle(ex)}" klasörüne eklenecek.`))),
       h('button', { class: 'btn small ghost', type: 'button', onclick: () => { draft.ignoreExisting = true; draft.targetId = null; banner.hidden = true; } }, 'Ayrı klasör aç'));
     banner.hidden = false;
   }

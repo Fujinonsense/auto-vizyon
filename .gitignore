@@ -2,3 +2,5 @@ node_modules/
 .superpowers/
 *.log
 graphify-out/
+app/demo/
+docs/ekranlar/
