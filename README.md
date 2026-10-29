@@ -1,13 +1,13 @@
 # Auto Vizyon
 
-Boyasız göçük onarım ustası için iPhone uygulaması (web uygulaması, ana ekrana eklenir).
+Boyasız göçük onarım ustası için iPhone uygulaması. Capacitor ile iOS'a sarılır, Ad Hoc imzalı IPA olarak sadece kayıtlı iPhone'a kurulur.
 
 - Uygulama içi kamera: araç, hasar öncesi/sonrası, ruhsat, ehliyet, kimlik.
 - Claude (Anthropic) plakayı ve belgeleri okur; her bilginin yanında kopyala düğmesi.
 - İşler, KDV, ödeme takibi, aylık kazanç, Excel'e aktarma ve Excel'den alma.
-- Google E-Tablo ve Drive ile eşitleme; bilgisayardaki Excel Power Query ile kendini yeniler.
+- Google E-Tablo ve Drive ile eşitleme; iMac'teki Excel, Drive'daki kendini yenileyen Auto Vizyon Excel.xlsx'i okur.
 
-Kurulum: [docs/KURULUM.md](docs/KURULUM.md)
+Kurulum: [docs/KURULUM.md](docs/KURULUM.md) · iPhone'a kurma: [docs/IPA.md](docs/IPA.md)
 
 ## Geliştirme
 
@@ -17,7 +17,9 @@ npm test                       # birim ve eşitleme testleri
 node tools/build-vendor.mjs    # Anthropic SDK ve SheetJS paketleri → app/vendor
 node tools/build-assets.mjs    # ikonlar ve plaka yazı tipi
 python -m http.server 5173 --directory app
+npx cap sync ios               # app/ → ios/ (Xcode projesi)
 ```
 
-`app/` klasörü olduğu gibi yayınlanır (GitHub Pages). `google/Code.gs` Google Apps Script tarafıdır.
+`app/` iPhone uygulamasının içine kopyalanır; IPA `.github/workflows/ios.yml` ile GitHub'ın macOS makinesinde derlenir.
+İmza: `tools/ios-imza.mjs`. Kurulum kodu: `tools/kurulum-kodu.mjs`. `google/Code.gs` Google Apps Script tarafıdır.
 Görseller Higgsfield ile üretildi (GPT Image 2.5, Seedance 2.5); ikon seti Tabler Icons (MIT), plaka yazı tipi Barlow Condensed (OFL).
