@@ -113,3 +113,10 @@ test('csv for the computer Excel: header line and plain numbers', () => {
   assert.ok(line.startsWith('"2026-10-29","Uğurcan Kaya"'));
   assert.ok(line.includes(',5000.5,'));
 });
+
+test('text that starts with "=" is stored as text, never run as a formula', () => {
+  const { w, token } = ready();
+  post(w, { token, ops: [{ op: 'upsertJob', row: jobRow({ 'Yapılan İş': '=IMPORTXML("http://x","//a")' }) }] });
+  const data = w.sheets.get('İşler').data;
+  assert.equal(data[1][data[0].indexOf('Yapılan İş')], `'=IMPORTXML("http://x","//a")`);
+});

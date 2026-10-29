@@ -129,7 +129,7 @@ function upsert_(name, idHeader, row) {
     if (h === STAMP) return new Date();
     if (!(h in row)) return existing ? existing[i] : '';
     if (h === 'Tarih') return toDate_(row[h]);
-    return row[h];
+    return safe_(row[h]);
   });
   if (r) sh.getRange(r, 1, 1, headers.length).setValues([values]);
   else sh.appendRow(values);
@@ -324,6 +324,11 @@ function setCell_(name, idHeader, id, header, value) {
   var headers = headers_(sh);
   var r = findRow_(sh, headers.indexOf(idHeader), id);
   if (r) sh.getRange(r, headers.indexOf(header) + 1).setValue(value);
+}
+
+// A leading apostrophe makes Sheets keep "=…" as text instead of running it as a formula.
+function safe_(v) {
+  return typeof v === 'string' && v.charAt(0) === '=' ? "'" + v : v;
 }
 
 function toDate_(v) {
