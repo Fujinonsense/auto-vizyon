@@ -17,6 +17,7 @@
     "@tabler/icons": "3.49.0",
     "esbuild": "0.28.2",
     "fake-indexeddb": "6.2.5",
+    "node-forge": "1.4.0",
     "puppeteer-core": "25.14.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
