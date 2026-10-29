@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, verify } from 'node:crypto';
-import { makeJwt, ascClient, distribute } from '../tools/testflight.mjs';
+import { makeJwt, ascClient, distribute, lookAfter } from '../tools/testflight.mjs';
 
 const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
 const p8 = privateKey.export({ type: 'pkcs8', format: 'pem' });
@@ -38,8 +38,8 @@ test('the client sends a fresh token and JSON, and reports Apple errors with the
   assert.equal(seen[1].init.body, JSON.stringify({ data: {} }));
 });
 
-test('the client retries reads through Apple outages and dropped connections, but never repeats a write', async () => {
-  const replies = { GET: [503, 'drop', 429, 200], POST: [503, 201] };
+test('the client retries reads through Apple outages, spurious 401s and dropped connections, but never repeats a write', async () => {
+  const replies = { GET: [503, 'drop', 429, 401, 200], POST: [503, 201] };
   const fetchImpl = async (url, init) => {
     const next = replies[init.method].shift();
     if (next === 'drop') throw new TypeError('fetch failed');
@@ -49,10 +49,10 @@ test('the client retries reads through Apple outages and dropped connections, bu
   const waits = [];
   const api = ascClient({ getToken: () => 't', fetchImpl, sleep: async (ms) => { waits.push(ms); } });
   assert.deepEqual(await api('GET', '/v1/builds?x'), { data: [] });
-  assert.equal(waits.length, 3);
+  assert.equal(waits.length, 4);
   assert.ok(waits.every((ms) => ms >= 5_000), `waits ${waits}`);
   await assert.rejects(api('POST', '/v1/betaAppReviewSubmissions', { data: {} }), (e) => e.status === 503);
-  assert.equal(waits.length, 3, 'the write was not retried');
+  assert.equal(waits.length, 4, 'the write was not retried');
 });
 
 test('a read that keeps failing gives up after a few minutes with Apple\'s error', async () => {
@@ -63,21 +63,37 @@ test('a read that keeps failing gives up after a few minutes with Apple\'s error
   assert.ok(waited >= 60_000 && waited <= 10 * 60_000, `waited ${waited} ms`);
 });
 
-// A pretend App Store Connect: answers by route, remembers every call. `external` may be a list,
-// one entry per read of the build's beta state; `refuse` makes a path fail with Apple's status and code.
-function fakeApi({ states = ['VALID'], external = 'READY_FOR_BETA_SUBMISSION', localizations = [], groups = [{ id: 'g1', attributes: { name: 'Babam', isInternalGroup: false } }], refuse = {} } = {}) {
+const b8 = { id: 'b8', attributes: { version: '8' } };
+
+// A pretend App Store Connect: answers by route, remembers every call.
+// - external: the build's beta state, or a list with one entry per read;
+// - inReview: one list of builds per "what is in review" query (the last one repeats);
+// - newest: the newest valid build; approved: the newest build that passed beta review;
+// - refuse: makes a write to that path fail with Apple's status and code.
+function fakeApi({
+  states = ['VALID'], external = 'READY_FOR_BETA_SUBMISSION', localizations = [],
+  groups = [{ id: 'g1', attributes: { name: 'Babam', isInternalGroup: false } }],
+  inReview = [[]], newest = [{ id: 'b9', attributes: { version: '9' } }], approved = [], refuse = {},
+} = {}) {
   const calls = [];
   const externals = [].concat(external);
   let poll = 0;
   let reads = 0;
+  let reviewQueries = 0;
   const api = async (method, path, body) => {
     calls.push({ method, path, body });
-    const no = refuse[path];
+    const no = method !== 'GET' && refuse[path];
     if (no) throw Object.assign(new Error(`refused ${no.code}`), { status: no.status, code: no.code });
     if (path.startsWith('/v1/apps?')) return { data: [{ id: 'app1' }] };
     if (path.startsWith('/v1/builds?')) {
-      const state = states[Math.min(poll++, states.length - 1)];
-      return { data: state ? [{ id: 'b9', attributes: { version: '9', processingState: state } }] : [] };
+      if (path.includes('betaReviewState]=WAITING_FOR_REVIEW,IN_REVIEW')) return { data: inReview[Math.min(reviewQueries++, inReview.length - 1)] };
+      if (path.includes('betaReviewState]=APPROVED')) return { data: approved };
+      if (path.includes('filter[version]=')) {
+        const state = states[Math.min(poll++, states.length - 1)];
+        return { data: state ? [{ id: 'b9', attributes: { version: '9', processingState: state } }] : [] };
+      }
+      if (path.includes('filter[processingState]=VALID&')) return { data: newest };
+      throw new Error(`unexpected ${method} ${path}`);
     }
     if (path.startsWith('/v1/betaGroups?')) return { data: groups };
     if (path === '/v1/builds/b9/betaBuildLocalizations') return { data: localizations };
@@ -99,7 +115,7 @@ test('a new build is waited for, added to the father\'s group, given its notes a
   const { api, calls } = fakeApi({ states: [null, 'PROCESSING', 'VALID'] });
   const result = await run(api);
   assert.deepEqual(result, { buildId: 'b9', submitted: true, state: 'READY_FOR_BETA_SUBMISSION' });
-  const polls = calls.filter((c) => c.path.startsWith('/v1/builds?'));
+  const polls = calls.filter((c) => c.path.includes('filter[version]='));
   assert.equal(polls.length, 3);
   assert.ok(calls[0].path.includes('filter[bundleId]=com.autovizyon.app'));
   assert.ok(polls[0].path.includes('filter[app]=app1') && polls[0].path.includes('filter[version]=9'));
@@ -112,6 +128,8 @@ test('a new build is waited for, added to the father\'s group, given its notes a
   assert.deepEqual(notes.body, {
     data: { type: 'betaBuildLocalizations', attributes: { locale: 'tr', whatsNew: 'Yeni sürüm' }, relationships: { build: { data: { type: 'builds', id: 'b9' } } } },
   });
+  const check = calls.find((c) => c.path.includes('betaReviewState]=WAITING_FOR_REVIEW,IN_REVIEW'));
+  assert.ok(check.path.includes('filter[app]=app1') && check.path.includes('filter[expired]=false'));
   const submit = calls.find((c) => c.path === '/v1/betaAppReviewSubmissions');
   assert.deepEqual(submit.body, { data: { type: 'betaAppReviewSubmissions', relationships: { build: { data: { type: 'builds', id: 'b9' } } } } });
 });
@@ -149,13 +167,40 @@ test('an empty note in the build\'s language is filled in place', async () => {
   assert.deepEqual(patch.body, { data: { type: 'betaBuildLocalizations', id: 'l1', attributes: { whatsNew: 'Yeni sürüm' } } });
 });
 
+test('a note another run wrote a moment earlier is not an error', async () => {
+  const { api } = fakeApi();
+  let notes = [];
+  const racing = async (method, path, body) => {
+    if (path === '/v1/builds/b9/betaBuildLocalizations') return { data: notes };
+    if (method === 'POST' && path === '/v1/betaBuildLocalizations') {
+      notes = [{ id: 'l1', attributes: { locale: 'tr', whatsNew: 'Yeni sürüm' } }];
+      throw Object.assign(new Error('refused ENTITY_ERROR'), { status: 409, code: 'ENTITY_ERROR' });
+    }
+    return api(method, path, body);
+  };
+  assert.equal((await run(racing)).submitted, true);
+  const lost = async (method, path, body) => {
+    if (method === 'POST' && path === '/v1/betaBuildLocalizations') throw Object.assign(new Error('refused'), { status: 409 });
+    return api(method, path, body);
+  };
+  await assert.rejects(run(lost), (e) => e.status === 409);
+});
+
 test('Apple refusing to add the build to the group stops the run', async () => {
   const { api, calls } = fakeApi({ refuse: { '/v1/betaGroups/g1/relationships/builds': { status: 409, code: 'ENTITY_ERROR.RELATIONSHIP.INVALID' } } });
   await assert.rejects(run(api), (e) => e.status === 409);
   assert.ok(!calls.some((c) => c.path === '/v1/betaAppReviewSubmissions'));
 });
 
-test('a refused submission passes only when Apple then shows the build in review', async () => {
+test('while another build is in review the new one is not submitted, and says which one it waits for', async () => {
+  const { api, calls } = fakeApi({ inReview: [[b8]] });
+  const result = await run(api);
+  assert.deepEqual(result, { buildId: 'b9', submitted: false, state: 'READY_FOR_BETA_SUBMISSION', waitingFor: '8' });
+  assert.ok(!calls.some((c) => c.path === '/v1/betaAppReviewSubmissions'));
+  assert.ok(calls.some((c) => c.path === '/v1/betaGroups/g1/relationships/builds'), 'still added to the group');
+});
+
+test('a refused submission is decided by Apple\'s state afterwards, not by the error', async () => {
   const at = '/v1/betaAppReviewSubmissions';
   const lostReply = fakeApi({
     external: ['READY_FOR_BETA_SUBMISSION', 'WAITING_FOR_BETA_REVIEW'],
@@ -163,8 +208,8 @@ test('a refused submission passes only when Apple then shows the build in review
   });
   assert.deepEqual(await run(lostReply.api), { buildId: 'b9', submitted: false, state: 'WAITING_FOR_BETA_REVIEW' });
 
-  const blocked = fakeApi({ refuse: { [at]: { status: 422, code: 'ENTITY_UNPROCESSABLE.ANOTHER_BUILD_IN_REVIEW' } } });
-  await assert.rejects(run(blocked.api), /9.*önceki bir derlemeyi/);
+  const raced = fakeApi({ inReview: [[], [b8]], refuse: { [at]: { status: 422, code: 'ENTITY_UNPROCESSABLE.ANOTHER_BUILD_IN_REVIEW' } } });
+  assert.equal((await run(raced.api)).waitingFor, '8');
 
   const other = fakeApi({ refuse: { [at]: { status: 422, code: 'ENTITY_UNPROCESSABLE.BETA_CONTRACT_MISSING' } } });
   await assert.rejects(run(other.api), (e) => e.code === 'ENTITY_UNPROCESSABLE.BETA_CONTRACT_MISSING');
@@ -178,4 +223,54 @@ test('a failed build, a missing group or a build that never gets ready stops wit
   await assert.rejects(run(fakeApi({ states: [null] }).api, { now: () => (t += 60_000), timeoutMs: 5 * 60_000 }), /9.*dakika/);
   t = 0;
   await assert.rejects(run(fakeApi({ external: 'PROCESSING' }).api, { now: () => (t += 60_000), timeoutMs: 5 * 60_000 }), /9.*dakika.*PROCESSING/);
+});
+
+// The follow-up run (testflight-takip.yml), every few hours.
+const NOW = Date.parse('2026-12-31T00:00:00Z');
+const look = (api, extra = {}) => lookAfter({
+  api, bundleId: 'com.autovizyon.app', groupName: 'Babam', whatsNew: 'Yeni sürüm',
+  sleep: async () => {}, now: () => NOW, log: () => {}, ...extra,
+});
+const approvedOn = (uploadedDate, expired = false) => [{ id: 'b9', attributes: { version: '9', uploadedDate, expired } }];
+
+test('the follow-up run sends the newest valid build on and reports what is in review', async () => {
+  const { api, calls } = fakeApi({ approved: approvedOn('2026-12-20T10:00:00Z') });
+  const report = await look(api);
+  const newest = calls.find((c) => c.path.includes('filter[processingState]=VALID&'));
+  assert.ok(newest.path.includes('filter[app]=app1') && newest.path.includes('filter[expired]=false') && newest.path.includes('sort=-uploadedDate'));
+  assert.ok(calls.some((c) => c.path.includes('filter[version]=9')), 'distributes the newest build');
+  assert.ok(calls.some((c) => c.path === '/v1/betaAppReviewSubmissions'));
+  assert.equal(report.newest, '9');
+  assert.equal(report.result.submitted, true);
+  assert.equal(report.approved, '9');
+  assert.equal(report.days, 10);
+});
+
+test('while another build is in review the follow-up run waits instead of submitting', async () => {
+  const { api, calls } = fakeApi({ inReview: [[b8]] });
+  const report = await look(api);
+  assert.equal(report.result.waitingFor, '8');
+  assert.equal(report.inReview, '8');
+  assert.ok(!calls.some((c) => c.path === '/v1/betaAppReviewSubmissions'));
+});
+
+test('the follow-up run raises the alarm when the newest build the father can install nears expiry', async () => {
+  await assert.rejects(look(fakeApi({ approved: approvedOn('2026-10-29T13:00:00Z') }).api), /9.*62 gün/);
+  await assert.rejects(look(fakeApi({ approved: approvedOn('2026-12-20T10:00:00Z', true) }).api), /9.*süresi doldu/);
+  await look(fakeApi({ approved: approvedOn('2026-11-15T06:30:00Z') }).api);
+  const first = await look(fakeApi({ approved: [] }).api);
+  assert.equal(first.approved, undefined, 'nothing approved yet: the first review is still running');
+});
+
+test('a problem with the newest build is only a warning in the follow-up run; the age check still runs', async () => {
+  const logs = [];
+  const { api, calls } = fakeApi({ external: 'BETA_REJECTED', approved: approvedOn('2026-12-20T10:00:00Z') });
+  const report = await look(api, { log: (m) => logs.push(m) });
+  assert.ok(logs.some((m) => /^::warning::.*BETA_REJECTED/.test(m)), logs.join('\n'));
+  assert.ok(calls.some((c) => c.path.includes('betaReviewState]=APPROVED')));
+  assert.equal(report.result, undefined);
+});
+
+test('no valid build left at all stops the follow-up run', async () => {
+  await assert.rejects(look(fakeApi({ newest: [] }).api), /geçerli derleme yok/);
 });

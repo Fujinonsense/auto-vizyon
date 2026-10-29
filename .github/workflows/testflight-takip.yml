@@ -1,0 +1,36 @@
+name: TestFlight takip
+
+# Every six hours: the newest TestFlight build goes to the father's group and, once Apple has no
+# other build in review, to beta review, so a build that had to wait is never left behind. Fails,
+# and GitHub emails, when the newest build he can install is more than 60 days old (TestFlight
+# builds stop opening at 90). Builds themselves come from ios.yml.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '41 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight-takip
+  cancel-in-progress: false
+
+jobs:
+  takip:
+    name: En yeni derlemeyi takip et
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Babam grubu, beta incelemesi ve 90 gün kontrolü
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: node tools/testflight.mjs --takip

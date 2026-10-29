@@ -2,8 +2,9 @@ name: iPhone TestFlight
 
 # Builds the iPhone app on a Mac in the cloud. With the IOS_* and ASC_* secrets (see docs/TESTFLIGHT.md)
 # it is signed for the App Store and uploaded to TestFlight; without them it is an unsigned test build.
-# Every uploaded build then goes to the father's external group. A TestFlight build lasts 90 days, so a
-# fresh one is built on the 1st and 15th of every month; one missed run still leaves two months.
+# Every uploaded build then goes to the father's external group; testflight-takip.yml sends on any
+# build that had to wait for another review. A TestFlight build lasts 90 days, so a fresh one is
+# built on the 1st and 15th of every month; one missed run still leaves two months.
 on:
   workflow_dispatch:
     inputs:

@@ -70,9 +70,10 @@ Kurulum kodu için: [KURULUM.md](KURULUM.md), 3. adım.
 ## Güncelleme, 90 gün, yıllık yenileme
 
 - **Yeni sürüm**: kod değişince GitHub yeni derlemeyi yükler. Dahili grup (`Ben`) kendiliğinden alır. "Babam grubuna gönder" işi Apple'ın işlemesini bekler (en çok 90 dakika), derlemeyi `Babam` grubuna ekler, "What to Test" notunu yazar ve gerekiyorsa beta incelemesine gönderir (`tools/testflight.mjs`). Derleme babana gidemeyecekse iş kırmızı biter ve GitHub sana e-posta atar. Babanın telefonunda TestFlight'ta Auto Vizyon için **Otomatik Güncellemeler** açık olmalı.
+- **Takip**: "TestFlight takip" işi 6 saatte bir en yeni derlemeye bakar. `Babam` grubunda değilse ekler. Apple bir seferde tek derleme inceler; bu yüzden bekletilen derlemeyi, öteki inceleme bitince kendisi gönderir. Babanın kurabildiği en yeni derleme 60 günü geçerse kırmızı biter ve e-posta gelir (TestFlight derlemesi 90. günde açılmaz).
 - **90 gün**: her TestFlight derlemesi 90 gün geçerli. GitHub her ayın 1'inde ve 15'inde yeni derleme yapıp gönderir; biri aksasa da babanın elindeki derlemenin en az iki ayı kalır. Aynı çalışmada ayrı bir iş depoya `.github/son-yenileme.txt` yazar, çünkü GitHub 60 gün hareketsiz kalan açık depolarda zamanlanmış işleri durdurur. Elle göndermek için: github.com'da depo → **Actions → iPhone TestFlight → Run workflow** (derleme numarası girersen yeni derleme yapmadan sadece onu gönderir).
 - **Kırmızı biten çalışma**: Actions'ta çalışmayı aç → **Re-run jobs → Re-run failed jobs**. ("Re-run all jobs" da olur; yeni derleme `12.2` gibi bir numara alır.)
-- **Zamanlama durduysa** (Actions'ta "This scheduled workflow is disabled"): **Actions → iPhone TestFlight → Enable workflow**.
+- **Zamanlama durduysa** (Actions'ta "This scheduled workflow is disabled"): **Actions → iPhone TestFlight → Enable workflow**, aynısını **TestFlight takip** için de yap.
 - **Bir yıl dolmadan** (29 Ekim 2027): Certificates'ta yeni Apple Distribution sertifikası (`hazirla` aynı anahtarla yeni istek yazar), Profiles'ta profili bu sertifikayla yeniden oluştur, ikisini klasöre koy, `node tools/ios-imza.mjs yukle`. API anahtarının süresi dolmaz.
 - **Her nisan**: Apple yüklemeler için yeni Xcode şartı koyduysa (Apple Developer → Upcoming Requirements), `ios.yml`'deki `runs-on: macos-15`'i o Xcode'un olduğu Mac imajına çevir.
 
@@ -84,6 +85,7 @@ Kurulum kodu için: [KURULUM.md](KURULUM.md), 3. adım.
 | `yukle`: "Profil başka bir sertifikayla yapılmış" | Profili düzenle, klasördeki sertifikayı seç, yeniden indir. |
 | `yukle`: "Issuer ID eksik" | `issuer-id.txt` dosyasına App Store Connect'teki Issuer ID'yi yaz. |
 | Derleme "TestFlight'a yükle" adımında düşüyor | Actions günlüğündeki hatayı Claude'a göster. |
-| "Apple önceki bir derlemeyi hâlâ inceliyor" | Apple'ın onay e-postasını bekle, sonra o çalışmada **Re-run failed jobs**. Beklemezsen 15 gün içindeki zamanlanmış derleme gönderilir. |
+| Bilgi notu: "Apple başka bir derlemeyi inceliyor" | Bir şey yapma; takip işi inceleme bitince gönderir. |
+| "TestFlight takip" kırmızı: "… gün önce yüklendi" | En son kırmızı iPhone TestFlight çalışmasının günlüğünü Claude'a göster. Acilse **Actions → iPhone TestFlight → Run workflow**. |
 | "TestFlight durumu: BETA_REJECTED" ya da başka bir durum | App Store Connect → TestFlight'ta derlemeye ve Apple'ın notuna bak, Claude'a göster. |
 | TestFlight'ta "Bu derlemenin süresi doldu" | 90 gün dolmuş: yukarıdaki "90 gün" maddesi. |
