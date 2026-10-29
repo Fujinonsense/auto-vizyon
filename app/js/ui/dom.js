@@ -80,6 +80,35 @@ export function confirmSheet({ title, message = '', okText = 'Tamam', danger = f
   });
 }
 
+export function spinner(size = 20) {
+  const s = icon('loader-2', size);
+  s.classList.add('spin');
+  return s;
+}
+
+// Segmented control: options [[value, label]], calls onChange(value).
+export function seg(options, value, onChange) {
+  const el = h('div', { class: 'seg', role: 'group' }, options.map(([v, label]) => h('button', {
+    type: 'button',
+    class: v === value ? 'on' : '',
+    'aria-pressed': String(v === value),
+    onclick: () => {
+      el.querySelectorAll('button').forEach((b, i) => {
+        const on = options[i][0] === v;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-pressed', String(on));
+      });
+      onChange(v);
+    },
+  }, label)));
+  return el;
+}
+
+export function toggle(label, checked, onChange) {
+  const input = h('input', { type: 'checkbox', checked, onchange: () => onChange(input.checked) });
+  return h('label', { class: 'switch' }, h('span', {}, label), input, h('span', { class: 'knob', 'aria-hidden': 'true' }));
+}
+
 export async function copyText(text, label = '') {
   try {
     await navigator.clipboard.writeText(text);
