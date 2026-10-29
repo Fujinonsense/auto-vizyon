@@ -65,14 +65,15 @@ function googleCard({ settings, rerender }) {
     h('label', { class: 'field' }, h('span', {}, 'Google anahtarı'), token),
     h('div', { class: 'row-flex', style: { flexWrap: 'wrap' } }, tryBtn, syncBtn),
     sheetLink,
-    h('p', { class: 'muted small' }, "Bilgisayardaki Excel'de Veri → Veri Al → Boş Sorgu → Gelişmiş Düzenleyici'ye bu kodu yapıştır. Excel tabloyu kendiliğinden yeniler."),
+    h('p', { class: 'muted small' }, "iMac: Google Drive'daki Auto Vizyon klasöründe \"Auto Vizyon Excel.xlsx\" her kayıttan sonra kendini yeniler. Excel'de Veri → Veri Al → Excel Çalışma Kitabı ile o dosyaya bağlan."),
+    h('p', { class: 'muted small' }, "Windows bilgisayar: Excel'de Veri → Veri Al → Boş Sorgu → Gelişmiş Düzenleyici'ye bu kodu yapıştır."),
     h('button', {
       class: 'btn block', type: 'button',
       onclick: () => {
         if (!url.value.trim() || !token.value.trim()) return toast('Önce Google adresi ve anahtarı gir', 'err');
         copyText(excelQueryCode(url.value.trim(), token.value.trim()), 'Excel kodu');
       },
-    }, icon('copy', 20), "Bilgisayar Excel'i için kodu kopyala"));
+    }, icon('copy', 20), "Windows Excel'i için kodu kopyala"));
 }
 
 export function initSyncUi() {

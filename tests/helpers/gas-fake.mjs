@@ -19,6 +19,7 @@ class Range {
       const target = (this.sheet.data[this.row - 1 + r] ??= []);
       vals.forEach((v, c) => { target[this.col - 1 + c] = v; });
     });
+    this.sheet.onChange();
     return this;
   }
   getValue() { return this.getValues()[0][0]; }
@@ -34,15 +35,15 @@ class Range {
 }
 
 class Sheet {
-  constructor(name) { this.name = name; this.data = []; }
+  constructor(name, onChange = () => {}) { this.name = name; this.data = []; this.onChange = onChange; }
   getName() { return this.name; }
   getRange(row, col, numRows, numCols) { return new Range(this, row, col, numRows, numCols); }
   getLastRow() { return this.data.length; }
   getLastColumn() { return Math.max(0, ...this.data.map((r) => r.length)); }
   getDataRange() { return new Range(this, 1, 1, Math.max(1, this.getLastRow()), Math.max(1, this.getLastColumn())); }
-  appendRow(values) { this.data.push([...values]); return this; }
-  deleteRow(r) { this.data.splice(r - 1, 1); }
-  clearContents() { this.data = []; return this; }
+  appendRow(values) { this.data.push([...values]); this.onChange(); return this; }
+  deleteRow(r) { this.data.splice(r - 1, 1); this.onChange(); }
+  clearContents() { this.data = []; this.onChange(); return this; }
   setFrozenRows() {}
   setColumnWidth() {}
 }
@@ -55,27 +56,65 @@ class Folder {
   getUrl() { return `https://drive.google.com/drive/folders/${this.id}`; }
   createFolder(name) { const f = new Folder(this.drive, name); this.folders.push(f); return f; }
   createFile(blob) {
-    const file = { id: randomUUID(), blob, getId() { return this.id; }, getBlob() { return this.blob; }, getName() { return blob.getName(); } };
+    const file = {
+      id: randomUUID(), blob,
+      getId() { return this.id; }, getBlob() { return this.blob; }, getName() { return this.blob.getName(); }, isTrashed() { return false; },
+    };
     this.files.push(file);
     this.drive.byId.set(file.id, file);
     return file;
   }
 }
 
+const blobOf = (bytes, mime, name) => ({
+  bytes, mime, name, getBytes: () => bytes, getContentType: () => mime, getName() { return this.name; }, setName(n) { this.name = n; return this; },
+});
+
 export function gasWorld() {
   const sheets = new Map();
+  const clock = { updated: Date.now() }; // the spreadsheet's "last modified" in Drive
+  const touch = () => { clock.updated = Math.max(Date.now(), clock.updated + 1); }; // every change moves it forward
   const spreadsheet = {
+    getId: () => 'SHEET1',
     getSheetByName: (n) => sheets.get(n) || null,
-    insertSheet: (n) => { const s = new Sheet(n); sheets.set(n, s); return s; },
-    getUrl: () => 'https://docs.google.com/spreadsheets/d/FAKE/edit',
+    insertSheet: (n) => { const s = new Sheet(n, touch); sheets.set(n, s); return s; },
+    getUrl: () => 'https://docs.google.com/spreadsheets/d/SHEET1/edit',
   };
   const drive = { byId: new Map(), roots: [] };
+  drive.byId.set('SHEET1', { getId: () => 'SHEET1', getLastUpdated: () => new Date(clock.updated), isTrashed: () => false });
+  const fetches = [];
+  const net = { fail: false };
+  const triggers = [];
   const props = new Map();
   const iter = (items) => ({ i: 0, hasNext() { return this.i < items.length; }, next() { return items[this.i++]; } });
   const pad = (n) => String(n).padStart(2, '0');
 
   const context = vm.createContext({
-    SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet },
+    SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet, flush() {} },
+    ScriptApp: {
+      getOAuthToken: () => 'TEST-TOKEN',
+      getProjectTriggers: () => triggers.map((t) => ({ getHandlerFunction: () => t.fn })),
+      newTrigger: (fn) => ({ timeBased: () => ({ everyMinutes: (minutes) => ({ create: () => { triggers.push({ fn, minutes }); } }) }) }),
+    },
+    // The xlsx export is the sheets as JSON; the Drive upload replaces a file's bytes.
+    UrlFetchApp: {
+      fetch: (url, params = {}) => {
+        fetches.push({ url, params });
+        if (net.fail) throw new Error(`Address unavailable: ${url}`);
+        if (/^https:\/\/docs\.google\.com\/spreadsheets\/d\/SHEET1\/export\?format=xlsx$/.test(url)) {
+          const bytes = [...Buffer.from(JSON.stringify(Object.fromEntries([...sheets].map(([n, s]) => [n, s.data]))))];
+          return { getBlob: () => blobOf(bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'SHEET1.xlsx') };
+        }
+        const up = /^https:\/\/www\.googleapis\.com\/upload\/drive\/v3\/files\/([^?]+)\?uploadType=media$/.exec(url);
+        if (up && params.method === 'patch') {
+          const file = drive.byId.get(up[1]);
+          if (!file) throw new Error('Request failed for https://www.googleapis.com returned code 404');
+          file.blob = blobOf(params.payload, params.contentType, file.getName());
+          return { getResponseCode: () => 200 };
+        }
+        throw new Error(`unexpected fetch ${url}`);
+      },
+    },
     DriveApp: {
       createFolder: (name) => { const f = new Folder(drive, name); drive.roots.push(f); return f; },
       getFoldersByName: (name) => iter(drive.roots.filter((f) => f.name === name)),
@@ -88,13 +127,13 @@ export function gasWorld() {
         setProperty: (k, v) => { props.set(k, String(v)); },
       }),
     },
-    LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
+    LockService: { getScriptLock: () => ({ waitLock() {}, tryLock: () => true, releaseLock() {} }) },
     ContentService: {
       createTextOutput: (text) => ({ text, mime: null, setMimeType(m) { this.mime = m; return this; }, getContent() { return this.text; } }),
       MimeType: { JSON: 'json', CSV: 'csv', TEXT: 'text' },
     },
     Utilities: {
-      newBlob: (bytes, mime, name) => ({ bytes, mime, name, getBytes: () => bytes, getName: () => name }),
+      newBlob: blobOf,
       base64Decode: (s) => Array.from(Buffer.from(s, 'base64')),
       base64Encode: (bytes) => Buffer.from(bytes).toString('base64'),
       getUuid: () => randomUUID(),
@@ -124,5 +163,5 @@ export function gasWorld() {
     return { ok: true, status: 200, json: async () => JSON.parse(text), text: async () => text };
   };
 
-  return { context, sheets, drive, props, fetch: fetchStub };
+  return { context, sheets, drive, props, fetch: fetchStub, fetches, net, triggers, clock };
 }

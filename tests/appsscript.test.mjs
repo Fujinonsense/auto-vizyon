@@ -120,3 +120,78 @@ test('text that starts with "=" is stored as text, never run as a formula', () =
   const data = w.sheets.get('İşler').data;
   assert.equal(data[1][data[0].indexOf('Yapılan İş')], `'=IMPORTXML("http://x","//a")`);
 });
+
+// The iMac's Excel reads a copy of the sheet ("Auto Vizyon Excel.xlsx") through Google Drive for desktop.
+const excelFiles = (w) => w.drive.roots.find((f) => f.name === 'Auto Vizyon').files.filter((f) => f.getName() === 'Auto Vizyon Excel.xlsx');
+const excelContent = (w) => JSON.parse(Buffer.from(excelFiles(w)[0].getBlob().getBytes()).toString());
+
+test('kurulum makes the Excel copy in the Auto Vizyon folder and a 5-minute timer, once', () => {
+  const { w } = ready();
+  w.context.kurulum();
+  assert.equal(excelFiles(w).length, 1);
+  assert.deepEqual(w.triggers, [{ fn: 'excelGuncelle', minutes: 5 }]);
+  const exp = w.fetches.find((f) => f.url.includes('/export'));
+  assert.equal(exp.url, 'https://docs.google.com/spreadsheets/d/SHEET1/export?format=xlsx');
+  assert.equal(exp.params.headers.Authorization, 'Bearer TEST-TOKEN');
+});
+
+test('a job from the phone rewrites the same Excel copy right away', () => {
+  const { w, token } = ready();
+  const id = excelFiles(w)[0].getId();
+  post(w, { token, ops: [{ op: 'upsertJob', row: jobRow() }] });
+  assert.equal(excelFiles(w).length, 1);
+  assert.equal(excelFiles(w)[0].getId(), id);
+  const jobs = excelContent(w)['İşler'];
+  assert.equal(jobs[1][jobs[0].indexOf('Müşteri')], 'Uğurcan Kaya');
+  const upload = w.fetches.at(-1);
+  assert.equal(upload.url, `https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media`);
+  assert.equal(upload.params.method, 'patch');
+  assert.equal(upload.params.headers.Authorization, 'Bearer TEST-TOKEN');
+});
+
+test('photos alone leave the Excel copy alone', () => {
+  const { w, token } = ready();
+  const before = w.fetches.length;
+  post(w, { token, ops: [{ op: 'photo', folderId: 'f1', title: 'A', kind: 'arac', photoId: 'p1', base64: 'anBn' }] });
+  assert.equal(w.fetches.length, before);
+});
+
+test('the timer rewrites the copy only when the sheet changed after the last one', () => {
+  const { w, token } = ready();
+  post(w, { token, ops: [{ op: 'upsertJob', row: jobRow() }] });
+  const before = w.fetches.length;
+  assert.equal(w.context.excelGuncelle(), false);
+  assert.equal(w.fetches.length, before);
+  const data = w.sheets.get('İşler').data; // edited by hand in Google Sheets
+  data[1][data[0].indexOf('Ödeme')] = 'Ödendi';
+  w.clock.updated += 1000;
+  assert.equal(w.context.excelGuncelle(), true);
+  const jobs = excelContent(w)['İşler'];
+  assert.equal(jobs[1][jobs[0].indexOf('Ödeme')], 'Ödendi');
+});
+
+test('when the Excel copy fails, the phone save still succeeds and the timer catches up', () => {
+  const { w, token } = ready();
+  w.net.fail = true;
+  const res = post(w, { token, ops: [{ op: 'upsertJob', row: jobRow() }] });
+  assert.equal(res.ok, true);
+  assert.equal(res.results[0].ok, true);
+  w.net.fail = false;
+  assert.equal(w.context.excelGuncelle(), true);
+  assert.equal(excelContent(w)['İşler'].length, 2);
+});
+
+test('an Excel copy deleted by hand is made again, a failed upload never makes a second one', () => {
+  const { w, token } = ready();
+  const root = w.drive.roots.find((f) => f.name === 'Auto Vizyon');
+  const old = excelFiles(w)[0];
+  root.files = root.files.filter((f) => f !== old);
+  w.drive.byId.delete(old.getId());
+  post(w, { token, ops: [{ op: 'upsertJob', row: jobRow() }] });
+  assert.equal(excelFiles(w).length, 1);
+  assert.notEqual(excelFiles(w)[0].getId(), old.getId());
+
+  w.net.fail = true;
+  post(w, { token, ops: [{ op: 'upsertJob', row: jobRow({ Ödeme: 'Ödendi' }) }] });
+  assert.equal(excelFiles(w).length, 1);
+});

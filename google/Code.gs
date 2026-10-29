@@ -10,6 +10,10 @@
  *
  * Telefon her değişikliği buraya yazar, buradaki elle düzeltmeleri geri okur. Fotoğraflar Drive'da
  * "Auto Vizyon" klasöründe her müşteriye ayrı klasöre kaydedilir.
+ *
+ * iMac'teki Excel için aynı klasörde "Auto Vizyon Excel.xlsx" durur: telefondan gelen her
+ * değişiklikten hemen sonra, tabloda elle yapılan değişikliklerden en geç 5 dakika sonra yenilenir.
+ * Google Drive masaüstü uygulaması onu iMac'e indirir, Excel oradan okur.
  */
 
 var SHEET_JOBS = 'İşler';
@@ -20,6 +24,8 @@ var JOB_ID = 'Kayıt No';
 var FOLDER_ID = 'Klasör No';
 var DRIVE_LINK = 'Drive Klasörü';
 var ROOT_FOLDER = 'Auto Vizyon';
+var EXCEL_FILE = 'Auto Vizyon Excel.xlsx';
+var EXCEL_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 // Must stay identical to app/js/excel/columns.js (a test checks it).
 var JOB_HEADERS = ['Tarih', 'Müşteri', 'Telefon', 'Plaka', 'Araç', 'Model Yılı', 'Şase No', 'Yapılan İş', 'Parçalar',
@@ -46,7 +52,24 @@ function kurulum() {
     props.setProperty('TOKEN', token);
   }
   Logger.log('Google anahtarı (kurulum koduna yaz): ' + token);
+  var hasTimer = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'excelGuncelle'; });
+  if (!hasTimer) ScriptApp.newTrigger('excelGuncelle').timeBased().everyMinutes(5).create();
+  writeExcel_();
   return token;
+}
+
+// Timer (every 5 minutes): picks up edits made by hand in the sheet.
+function excelGuncelle() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return false;
+  try {
+    var changed = DriveApp.getFileById(SpreadsheetApp.getActiveSpreadsheet().getId()).getLastUpdated().getTime();
+    if (props_().getProperty('EXCEL_ID') && changed <= Number(props_().getProperty('EXCEL_AT'))) return false;
+    writeExcel_();
+    return true;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function doGet(e) {
@@ -90,7 +113,14 @@ function handle_(req) {
   lock.waitLock(30000);
   try {
     var results = ops.map(runOp_);
-    if (ops.some(function (o) { return o.op !== 'photo'; })) writeSummary_();
+    if (ops.some(function (o) { return o.op !== 'photo'; })) {
+      writeSummary_();
+      try {
+        writeExcel_();
+      } catch (err) {
+        // the timer tries again; the phone's save is already done
+      }
+    }
     return { ok: true, results: results, serverTime: Date.now() };
   } finally {
     lock.releaseLock();
@@ -273,6 +303,33 @@ function csv_(name) {
     });
   }
   return ContentService.createTextOutput(lines.join('\r\n')).setMimeType(ContentService.MimeType.CSV);
+}
+
+// The whole spreadsheet as .xlsx, written over the same Drive file so the iMac keeps one path.
+function writeExcel_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  SpreadsheetApp.flush();
+  var changed = DriveApp.getFileById(ss.getId()).getLastUpdated().getTime();
+  var auth = { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() };
+  var blob = UrlFetchApp.fetch('https://docs.google.com/spreadsheets/d/' + ss.getId() + '/export?format=xlsx', { headers: auth })
+    .getBlob().setName(EXCEL_FILE);
+  var props = props_();
+  var id = props.getProperty('EXCEL_ID');
+  if (id && excelExists_(id)) {
+    UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files/' + id + '?uploadType=media',
+      { method: 'patch', contentType: EXCEL_MIME, payload: blob.getBytes(), headers: auth });
+  } else {
+    props.setProperty('EXCEL_ID', rootFolder_().createFile(blob).getId());
+  }
+  props.setProperty('EXCEL_AT', String(changed));
+}
+
+function excelExists_(id) {
+  try {
+    return !DriveApp.getFileById(id).isTrashed();
+  } catch (err) {
+    return false; // deleted by hand
+  }
 }
 
 function prepareSheet_(ss, name, headers) {
