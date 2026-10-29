@@ -49,6 +49,8 @@ node tools/kurulum-kodu.mjs
 
 API anahtarını, Google adresini ve Google anahtarını sorar, tek bir `AV1-…` kodu yazar. Kodu babana WhatsApp'tan gönder. Komut hiçbir şeyi internete göndermez.
 
+Ev klasöründeki `AutoVizyon-imza\google.txt` dosyasında Google adresi ve anahtarı yazılıysa onları sormaz, sadece Anthropic anahtarını sorar. Windows'ta kod panoya da kopyalanır, WhatsApp'a doğrudan yapıştırırsın.
+
 ## 4. Babanın iPhone'una kurma
 
 Baban İstanbul'da olsa da olur; her şey WhatsApp'tan gider.
