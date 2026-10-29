@@ -4,12 +4,14 @@ import { listScreen } from './ui/screens/list.js';
 import { captureScreen } from './ui/screens/capture.js';
 import { editScreen } from './ui/screens/folder-edit.js';
 import { folderView } from './ui/screens/folder-view.js';
+import { earningsScreen } from './ui/screens/earnings.js';
 import { maybeShowWelcome } from './ui/welcome.js';
 
 buildTabbar();
 route('/', listScreen);
 route('/yeni', captureScreen);
 route('/klasor/:id', folderView);
+route('/kazanc', earningsScreen);
 route('/klasor/:id/duzenle', editScreen);
 route('/klasor/:id/belge/:kind', editScreen);
 startRouter();

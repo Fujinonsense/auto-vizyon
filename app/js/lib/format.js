@@ -39,6 +39,15 @@ export function formatDate(iso) {
   return y && m && d ? `${d}.${m}.${y}` : String(iso);
 }
 
+const monthFmt = new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+// "2026-10" → "Ekim 2026"
+export function formatMonth(month) {
+  const [y, m] = month.split('-').map(Number);
+  const text = monthFmt.format(new Date(Date.UTC(y, m - 1, 1)));
+  return text.charAt(0).toLocaleUpperCase('tr') + text.slice(1);
+}
+
 export function todayIso(now = new Date()) {
   const p = (n) => String(n).padStart(2, '0');
   return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;

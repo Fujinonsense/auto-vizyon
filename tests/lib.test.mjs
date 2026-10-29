@@ -133,3 +133,9 @@ test('newId: unique strings', () => {
   assert.notEqual(a, b);
   assert.ok(a.length >= 16);
 });
+
+test('formatMonth: "2026-10" → "Ekim 2026"', async () => {
+  const { formatMonth } = await import('../app/js/lib/format.js');
+  assert.equal(formatMonth('2026-10'), 'Ekim 2026');
+  assert.equal(formatMonth('2027-01'), 'Ocak 2027');
+});

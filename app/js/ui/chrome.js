@@ -19,14 +19,14 @@ export function setTopbar({ title = '', back = '/', actions = [] } = {}) {
     );
     return;
   }
-  bar.replaceChildren(
-    h('button', {
+  bar.replaceChildren(...[
+    back !== null && h('button', {
       class: 'icon-btn back', type: 'button', 'aria-label': 'Geri',
       onclick: () => (typeof back === 'function' ? back() : goBack(back)),
     }, icon('chevron-left', 30)),
     h('span', { class: 'title' }, title),
     ...actions,
-  );
+  ].filter(Boolean));
 }
 
 export function setTopbarSolid(solid) {
