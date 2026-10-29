@@ -1,0 +1,163 @@
+name: iPhone IPA
+
+# Builds the iPhone app on a Mac in the cloud. With the three IOS_* secrets (see docs/IPA.md)
+# the IPA is signed Ad Hoc for the registered iPhone; without them it is an unsigned test build.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'ios/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'capacitor.config.json'
+      - '.github/workflows/ios.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      HAS_SIGNING: ${{ secrets.IOS_CERT_P12_BASE64 != '' && secrets.IOS_PROFILE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Paketler ve testler
+        run: |
+          npm ci
+          npm test
+
+      - name: Web dosyalarını iOS projesine kopyala
+        run: npx cap sync ios
+
+      - name: En yeni kararlı Xcode
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app | grep -viE 'beta|release_candidate|_rc' | sort -V | tail -1)
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
+
+      - name: İmza (sertifika ve Ad Hoc profili)
+        if: env.HAS_SIGNING == 'true'
+        env:
+          P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/imza.keychain-db"
+          KC_PASS=$(uuidgen)
+          echo "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/imza.p12"
+          echo "$PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/profil.mobileprovision"
+
+          security create-keychain -p "$KC_PASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KC_PASS" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/imza.p12" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          # Apple's intermediate certificate, so the distribution certificate counts as valid.
+          curl -fsSL -o "$RUNNER_TEMP/AppleWWDRCAG3.cer" https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer \
+            && security import "$RUNNER_TEMP/AppleWWDRCAG3.cer" -k "$KEYCHAIN" -A || true
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PASS" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | awk 'NR==1 && $2 ~ /^[0-9A-F]+$/ {print $2}')
+          if [ -z "$IDENTITY" ]; then echo "::error::p12 içinde imza sertifikası yok (ya da şifre yanlış)"; exit 1; fi
+
+          security cms -D -i "$RUNNER_TEMP/profil.mobileprovision" > "$RUNNER_TEMP/profil.plist"
+          PB=/usr/libexec/PlistBuddy
+          UUID=$($PB -c 'Print UUID' "$RUNNER_TEMP/profil.plist")
+          NAME=$($PB -c 'Print Name' "$RUNNER_TEMP/profil.plist")
+          TEAM=$($PB -c 'Print TeamIdentifier:0' "$RUNNER_TEMP/profil.plist")
+          APP_ID=$($PB -c 'Print Entitlements:application-identifier' "$RUNNER_TEMP/profil.plist")
+          if [ "$APP_ID" != "$TEAM.com.autovizyon.app" ]; then
+            echo "::error::Profil $APP_ID için yapılmış; com.autovizyon.app olmalı"; exit 1
+          fi
+          for d in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$d" && cp "$RUNNER_TEMP/profil.mobileprovision" "$d/$UUID.mobileprovision"
+          done
+          echo "Profil: $NAME ($UUID), takım $TEAM"
+
+          # Manual signing for the App target only; the Swift packages stay unsigned.
+          TEAM="$TEAM" NAME="$NAME" IDENTITY="$IDENTITY" python3 - <<'PY'
+          import os, pathlib
+          p = pathlib.Path('ios/App/App.xcodeproj/project.pbxproj')
+          s = p.read_text()
+          signing = ('CODE_SIGN_STYLE = Manual;\n\t\t\t\tDEVELOPMENT_TEAM = {TEAM};\n\t\t\t\t'
+                     'PROVISIONING_PROFILE_SPECIFIER = "{NAME}";\n\t\t\t\tCODE_SIGN_IDENTITY = "{IDENTITY}";').format(**os.environ)
+          assert s.count('CODE_SIGN_STYLE = Automatic;') == 2, 'App hedefinde iki imza ayarı bekleniyordu'
+          p.write_text(s.replace('CODE_SIGN_STYLE = Automatic;', signing))
+          PY
+
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>release-testing</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>$TEAM</string>
+            <key>signingCertificate</key><string>$IDENTITY</string>
+            <key>provisioningProfiles</key>
+            <dict><key>com.autovizyon.app</key><string>$UUID</string></dict>
+            <key>thinning</key><string>&lt;none&gt;</string>
+          </dict>
+          </plist>
+          EOF
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+      - name: Derle (archive)
+        run: |
+          set -euo pipefail
+          EXTRA=()
+          if [ "$HAS_SIGNING" != "true" ]; then
+            EXTRA=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=)
+          else
+            EXTRA=(OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN")
+          fi
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            "${EXTRA[@]}" \
+            archive | tee "$RUNNER_TEMP/xcodebuild.log" | grep -E '^(\*\*|error|warning: .*signing)|error:' || true
+          test -d "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app" || { tail -80 "$RUNNER_TEMP/xcodebuild.log"; exit 1; }
+
+      - name: IPA (imzalı, Ad Hoc)
+        if: env.HAS_SIGNING == 'true'
+        run: |
+          set -euo pipefail
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/cikti"
+          mkdir -p ipa && mv "$RUNNER_TEMP"/cikti/*.ipa "ipa/AutoVizyon-$GITHUB_RUN_NUMBER.ipa"
+
+      - name: IPA (imzasız deneme)
+        if: env.HAS_SIGNING != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/paket/Payload" ipa
+          cp -R "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app" "$RUNNER_TEMP/paket/Payload/"
+          (cd "$RUNNER_TEMP/paket" && zip -qry "$GITHUB_WORKSPACE/ipa/AutoVizyon-$GITHUB_RUN_NUMBER-imzasiz.ipa" Payload)
+          echo "::notice::İmza bilgileri eklenmediği için IPA imzasız. Kurulum için docs/IPA.md."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AutoVizyon-IPA-${{ github.run_number }}
+          path: ipa/*.ipa
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Anahtar zincirini sil
+        if: always() && env.KEYCHAIN != ''
+        run: security delete-keychain "$KEYCHAIN" || true

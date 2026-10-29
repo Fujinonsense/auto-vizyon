@@ -44,8 +44,26 @@ def chrome(img):
     return img
 
 
-wordmark = knock_out_white(logo.crop(band_box(278, 360)))
+def drop_edge_specks(img, max_width=3):
+    """Clears the 1-2 px stray columns the scan leaves left and right of the lettering."""
+    a = img.getchannel('A')
+    ink = [any(a.getpixel((x, y)) > 40 for y in range(img.height)) for x in range(img.width)]
+    runs, start = [], None
+    for x, on in enumerate(ink + [False]):
+        if on and start is None:
+            start = x
+        if not on and start is not None:
+            runs.append((start, x))
+            start = None
+    while runs and runs[0][1] - runs[0][0] <= max_width:
+        runs.pop(0)
+    while runs and runs[-1][1] - runs[-1][0] <= max_width:
+        runs.pop()
+    return img.crop((max(0, runs[0][0] - 2), 0, min(img.width, runs[-1][1] + 2), img.height))
+
+
+wordmark = drop_edge_specks(knock_out_white(logo.crop(band_box(278, 360))))
 wordmark.save(f'{out}/wordmark.png')
 chrome(wordmark).save(f'{out}/wordmark-dark.png')
-chrome(knock_out_white(logo.crop(band_box(104, 396)))).save(f'{out}/lockup-dark.png')
+drop_edge_specks(chrome(knock_out_white(logo.crop(band_box(104, 396))))).save(f'{out}/lockup-dark.png')
 print('wordmark', wordmark.size)

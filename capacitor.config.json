@@ -1,0 +1,13 @@
+{
+  "appId": "com.autovizyon.app",
+  "appName": "Auto Vizyon",
+  "webDir": "app",
+  "backgroundColor": "#000000",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#000000"
+  },
+  "plugins": {
+    "StatusBar": { "style": "DARK", "overlaysWebView": true }
+  }
+}
