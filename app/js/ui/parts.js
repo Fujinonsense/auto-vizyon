@@ -57,6 +57,9 @@ export function reflectionBoard() {
   return tpl.content.firstChild;
 }
 
-export function emptyState({ title, text, action }) {
-  return h('div', { class: 'empty' }, reflectionBoard(), h('h2', {}, title), text && h('p', {}, text), action);
+// art: one of the Higgsfield icons (img/ic-<art>.webp); without it, the PDR light board.
+export function emptyState({ title, text, action, art }) {
+  return h('div', { class: 'empty' },
+    art ? h('img', { class: 'empty-art', src: `img/ic-${art}.webp`, alt: '' }) : reflectionBoard(),
+    h('h2', {}, title), text && h('p', {}, text), action);
 }

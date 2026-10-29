@@ -74,6 +74,7 @@ export async function listScreen(params, ctx) {
     if (!all.length) {
       results.className = '';
       results.replaceChildren(emptyState({
+        art: 'car',
         title: 'İlk aracı çek',
         text: 'Aracın fotoğrafını çekince plaka okunur, müşterinin klasörü açılır.',
         action: h('button', { class: 'btn primary', type: 'button', onclick: () => go('/yeni') }, icon('camera'), 'Yeni araç'),

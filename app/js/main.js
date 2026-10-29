@@ -3,13 +3,17 @@ import { buildTabbar } from './ui/chrome.js';
 import { listScreen } from './ui/screens/list.js';
 import { captureScreen } from './ui/screens/capture.js';
 import { editScreen } from './ui/screens/folder-edit.js';
+import { folderView } from './ui/screens/folder-view.js';
+import { maybeShowWelcome } from './ui/welcome.js';
 
 buildTabbar();
 route('/', listScreen);
 route('/yeni', captureScreen);
+route('/klasor/:id', folderView);
 route('/klasor/:id/duzenle', editScreen);
 route('/klasor/:id/belge/:kind', editScreen);
 startRouter();
+maybeShowWelcome();
 
 // No offline cache during local development, so edits show up on reload.
 const local = ['localhost', '127.0.0.1'].includes(location.hostname);

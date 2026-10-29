@@ -13,7 +13,7 @@ import { jobFields } from '../job-fields.js';
 import { openCamera } from '../../media/camera.js';
 import { prepareImage } from '../../media/image.js';
 
-const DOCS = [['ruhsat', 'file-text'], ['ehliyet', 'license'], ['kimlik', 'id']];
+const DOCS = ['ruhsat', 'ehliyet', 'kimlik'];
 const COPY_FROM_EXISTING = ['name', 'phone', 'brand', 'model', 'modelFull', 'color', 'modelYear', 'vin', 'engineNo', 'ruhsat', 'ehliyet', 'kimlik'];
 
 export function folderForm(draft, ctx, { autoDoc } = {}) {
@@ -114,7 +114,7 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
   // ---------- documents ----------
   const docList = h('div', { class: 'doc-list' });
   function renderDocs() {
-    docList.replaceChildren(...DOCS.map(([kind, ic]) => {
+    docList.replaceChildren(...DOCS.map((kind) => {
       const st = draft.reads[kind];
       const shot = draft.photos.some((p) => p.kind === kind);
       let sub = 'Fotoğrafını çek, yapay zeka okusun';
@@ -137,7 +137,9 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
         state = 'done';
       }
       return h('div', { class: `doc-row ${state}` },
-        h('span', { class: 'doc-ic' }, state === 'busy' ? spinner(24) : icon(state === 'done' ? 'circle-check' : state === 'err' ? 'alert-triangle' : ic, 24)),
+        h('span', { class: 'doc-ic' },
+          h('img', { src: `img/ic-${kind}.webp`, alt: '' }),
+          state && h('span', { class: 'doc-badge' }, state === 'busy' ? spinner(14) : icon(state === 'done' ? 'check' : 'alert-triangle', 14))),
         h('div', { class: 'grow' }, h('b', {}, KINDS[kind].label), h('span', {}, sub)),
         action);
     }));
