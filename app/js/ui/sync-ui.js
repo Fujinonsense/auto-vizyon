@@ -1,9 +1,9 @@
 // Sync status in the home top bar and the Google card in Ayarlar.
 import { syncSlot } from './chrome.js';
-import { onSyncStatus, syncStatus, syncNow, testConnection, excelQueryCode } from '../sync/google.js';
+import { onSyncStatus, syncStatus, syncNow, testConnection } from '../sync/google.js';
 import { settingsExtras } from './screens/settings.js';
 import { setSetting } from '../data/repo.js';
-import { h, icon, toast, spinner, copyText } from './dom.js';
+import { h, icon, toast, spinner } from './dom.js';
 import { go } from './router.js';
 
 const LABEL = { off: 'Google bağlı değil', ok: 'Google ile eşit', syncing: 'Eşitleniyor', pending: 'İnternet bekleniyor', error: 'Eşitlenemedi' };
@@ -59,21 +59,13 @@ function googleCard({ settings, rerender }) {
   }, icon('refresh', 18), 'Şimdi eşitle');
 
   return h('section', { class: 'card section stack' },
-    h('div', { class: 'section-head' }, h('h3', {}, 'Google ve bilgisayar Excel\'i')),
+    h('div', { class: 'section-head' }, h('h3', {}, 'Google ve iMac Excel\'i')),
     h('p', { class: `small ${syncStatus.state === 'ok' ? 'ok-text' : syncStatus.state === 'error' ? 'due-text' : 'muted'}` }, status),
     h('label', { class: 'field' }, h('span', {}, 'Google Apps Script adresi'), url),
     h('label', { class: 'field' }, h('span', {}, 'Google anahtarı'), token),
     h('div', { class: 'row-flex', style: { flexWrap: 'wrap' } }, tryBtn, syncBtn),
     sheetLink,
-    h('p', { class: 'muted small' }, "iMac: Google Drive'daki Auto Vizyon klasöründe \"Auto Vizyon Excel.xlsx\" her kayıttan sonra kendini yeniler. Excel'de Veri → Veri Al → Excel Çalışma Kitabı ile o dosyaya bağlan."),
-    h('p', { class: 'muted small' }, "Windows bilgisayar: Excel'de Veri → Veri Al → Boş Sorgu → Gelişmiş Düzenleyici'ye bu kodu yapıştır."),
-    h('button', {
-      class: 'btn block', type: 'button',
-      onclick: () => {
-        if (!url.value.trim() || !token.value.trim()) return toast('Önce Google adresi ve anahtarı gir', 'err');
-        copyText(excelQueryCode(url.value.trim(), token.value.trim()), 'Excel kodu');
-      },
-    }, icon('copy', 20), "Windows Excel'i için kodu kopyala"));
+    h('p', { class: 'muted small' }, "iMac: Google Drive'daki Auto Vizyon klasöründe \"Auto Vizyon Excel.xlsx\" her kayıttan sonra kendini yeniler. Excel'de Veri → Veri Al → Excel Çalışma Kitabı ile o dosyaya bağlan."));
 }
 
 export function initSyncUi() {

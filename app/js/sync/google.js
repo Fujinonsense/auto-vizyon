@@ -137,19 +137,6 @@ export async function testConnection(scriptUrl, token) {
   return (await call({ scriptUrl, token }, { action: 'ping' })).sheetUrl;
 }
 
-// Pasted once into Excel's Power Query on the computer; refreshes from the sheet.
-export function excelQueryCode(scriptUrl, token) {
-  const url = `${scriptUrl}?action=csv&sheet=isler&token=${token}`;
-  return [
-    'let',
-    `    Kaynak = Csv.Document(Web.Contents("${url}"), [Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.Csv]),`,
-    '    Basliklar = Table.PromoteHeaders(Kaynak, [PromoteAllScalars=true]),',
-    '    Turler = Table.TransformColumnTypes(Basliklar, {{"Tarih", type date}, {"Tutar (KDV Hariç)", type number}, {"KDV Oranı", type number}, {"KDV", type number}, {"Toplam (KDV Dahil)", type number}}, "en-US")',
-    'in',
-    '    Turler',
-  ].join('\n');
-}
-
 export function startAutoSync() {
   let timer = null;
   const soon = () => {

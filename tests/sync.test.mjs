@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { gasWorld } from './helpers/gas-fake.mjs';
 import * as repo from '../app/js/data/repo.js';
 import { clearAll } from '../app/js/data/db.js';
-import { syncNow, syncStatus, excelQueryCode } from '../app/js/sync/google.js';
+import { syncNow, syncStatus } from '../app/js/sync/google.js';
 
 const URL_ = 'https://script.google.com/macros/s/FAKE/exec';
 
@@ -64,13 +64,6 @@ test('without Google settings sync stays off', async () => {
   await repo.setSetting('scriptUrl', '');
   await syncNow();
   assert.equal(syncStatus.state, 'off');
-});
-
-test('excelQueryCode: Power Query code for the computer Excel', () => {
-  const code = excelQueryCode(URL_, 'tok');
-  assert.ok(code.includes(`${URL_}?action=csv&sheet=isler&token=tok`));
-  assert.ok(code.includes('"en-US"'));
-  assert.ok(code.includes('{"Toplam (KDV Dahil)", type number}'));
 });
 
 test('an unreachable or wrong Google address gives a Turkish hint, not "Failed to fetch"', async () => {

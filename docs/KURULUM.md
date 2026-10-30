@@ -72,8 +72,6 @@ Baban İstanbul'da olsa da olur; her şey WhatsApp'tan gider.
 
 Telefondan kaydedilen iş 1-2 dakika içinde bu tabloda görünür. Excel'deki bu tablo ayna gibidir: düzeltmeyi telefondan ya da Google tablosundan yap (Excel'de elle değiştirilen hücre bir sonraki yenilemede eski haline döner). Yanına kendi sayfalarını, formüllerini, grafiklerini ekleyebilirsin; onlar silinmez.
 
-**Windows bilgisayar** (iMac yerine): telefonda **Ayarlar → Windows Excel'i için kodu kopyala** → Excel'de **Veri → Veri Al → Diğer Kaynaklardan → Boş Sorgu → Gelişmiş Düzenleyici** → kodu yapıştır → **Kapat ve Yükle** → yukarıdaki 5. madde.
-
 ## Günlük kullanım
 
 - **Yeni araç**: ortadaki altın düğme → aracı çek (plaka okunur) → göçüğün öncesini çek ya da **Geç** → isim ve telefon → lazımsa Ruhsat / Ehliyet / Kimlik → tutar → **Kaydet**.
