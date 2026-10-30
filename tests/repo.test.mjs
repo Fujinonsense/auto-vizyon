@@ -110,7 +110,7 @@ test('applyRemote writes without queueing and keeps the local cover', async () =
 
 test('settings have defaults and can be changed', async () => {
   const s = await repo.getSettings();
-  assert.equal(s.model, 'claude-opus-5-5');
+  assert.equal(s.model, undefined, 'the model is not a setting');
   assert.equal(s.vatRate, 20);
   await repo.setSetting('vatRate', 10);
   assert.equal((await repo.getSettings()).vatRate, 10);

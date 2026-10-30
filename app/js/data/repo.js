@@ -8,7 +8,6 @@ import { todayIso } from '../lib/format.js';
 
 export const DEFAULT_SETTINGS = {
   apiKey: '',
-  model: 'claude-opus-5-5',
   vatRate: 20,
   vatMode: 'haric',
   scriptUrl: '',

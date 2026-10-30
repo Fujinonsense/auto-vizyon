@@ -24,12 +24,6 @@
     </header>
     <section class="card section stack">
       <label class="field"><span>Anthropic API anahtarı</span><input id="apiKey" type="password" placeholder="sk-ant-…" autocomplete="off"></label>
-      <label class="field"><span>Model</span>
-        <select id="model">
-          <option value="claude-opus-5-5">Claude Opus 5.5 (en doğru)</option>
-          <option value="claude-haiku-5-5">Claude Haiku 5.5 (en ucuz)</option>
-        </select>
-      </label>
       <label class="field"><span>Google Apps Script adresi (isteğe bağlı)</span><input id="scriptUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec"></label>
       <label class="field"><span>Google anahtarı (isteğe bağlı)</span><input id="token" type="password" autocomplete="off"></label>
       <button id="make" class="btn primary block" type="button">Kodu üret</button>
@@ -45,7 +39,7 @@
     import { encodeSetup } from './js/lib/setupcode.js';
     const $ = (id) => document.getElementById(id);
     $('make').addEventListener('click', () => {
-      const code = encodeSetup({ apiKey: $('apiKey').value.trim(), model: $('model').value, scriptUrl: $('scriptUrl').value.trim(), token: $('token').value.trim() });
+      const code = encodeSetup({ apiKey: $('apiKey').value.trim(), scriptUrl: $('scriptUrl').value.trim(), token: $('token').value.trim() });
       $('out').value = code;
       $('result').hidden = false;
     });

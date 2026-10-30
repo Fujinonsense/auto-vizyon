@@ -25,7 +25,7 @@ export function readInto(draft, kind, blobs) {
   const p = (async () => {
     try {
       const s = await getSettings();
-      const r = await readDocument(kind, blobs, { apiKey: s.apiKey, model: s.model });
+      const r = await readDocument(kind, blobs, { apiKey: s.apiKey });
       const changed = mergeAi(draft.folder, kind, r.fields, r.unclear);
       draft.reads[kind] = { state: 'done', count: Object.values(r.fields).filter(Boolean).length, changed, blobs };
     } catch (e) {

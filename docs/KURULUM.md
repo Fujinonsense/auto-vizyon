@@ -22,7 +22,7 @@ Toplam süre: ilk seferde yaklaşık 1 saat, bir kere yapılır. Her şeyi sen k
 2. **Billing** bölümünden 5 dolar kredi yükle. **Auto reload** (otomatik yükleme) kapalı kalsın; kredi bitince uygulama sadece "kredi bitti" der, para çekilmez.
 3. **API Keys** → **Create Key** → adını "Auto Vizyon" yap → anahtarı kopyala (`sk-ant-` ile başlar). Bir yere not et, bir daha gösterilmez.
 
-Maliyet: Claude Opus 5.5 ile araç ve ruhsat başına yaklaşık 5 cent. Ayarlardan "En ucuz"u (Haiku 5.5) seçersen araç başına yaklaşık 0,1 cent.
+Maliyet: Uygulama her zaman Claude Opus 5.5 kullanır (ayarlardan değişmez); araç ve ruhsat başına yaklaşık 5 cent.
 
 ## 2. Google E-Tablo ve Drive (10 dakika)
 

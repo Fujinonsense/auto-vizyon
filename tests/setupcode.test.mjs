@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { encodeSetup, decodeSetup } from '../app/js/lib/setupcode.js';
 
-const setup = { apiKey: 'sk-ant-api03-abc_DEF-123', model: 'claude-opus-5-5', scriptUrl: 'https://script.google.com/macros/s/AKfyc/exec', token: 'tök3n' };
+const setup = { apiKey: 'sk-ant-api03-abc_DEF-123', scriptUrl: 'https://script.google.com/macros/s/AKfyc/exec', token: 'tök3n' };
 
 test('setup code round trip', () => {
   const code = encodeSetup(setup);
@@ -25,4 +25,9 @@ test('garbage is rejected', () => {
 test('only known settings come back', () => {
   const back = decodeSetup(encodeSetup({ apiKey: 'k', vatRate: 99, evil: 'x' }));
   assert.deepEqual(back, { apiKey: 'k' });
+});
+
+test('a model inside a code cannot change the model, and the code still works', () => {
+  const code = 'AV1-' + Buffer.from(JSON.stringify({ ...setup, model: 'claude-haiku-5-5' })).toString('base64url');
+  assert.deepEqual(decodeSetup(code), setup);
 });

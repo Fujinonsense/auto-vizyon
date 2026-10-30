@@ -9,13 +9,15 @@ const reply = (obj) => ({
   content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: JSON.stringify(obj) }],
 });
 const jpeg = () => new Blob(['x'], { type: 'image/jpeg' });
-const failing = (status, message = '') => ({
-  messages: { create: async () => { const e = new Error(message); e.status = status; throw e; } },
-});
+const failing = (status, message = '') => {
+  const create = async () => { const e = new Error(message); e.status = status; throw e; };
+  return { messages: { create }, beta: { messages: { create } } };
+};
 const code = (c) => (e) => e instanceof AiError && e.code === c;
 
-test('opus request: server-side fallbacks, low effort, json schema, images before the text', () => {
-  const r = buildRequest('ruhsat', [img, img], 'claude-opus-5-5');
+test('every request: Opus 5.5, server-side fallbacks, low effort, json schema, images before the text', () => {
+  const r = buildRequest('ruhsat', [img, img]);
+  assert.equal(r.model, 'claude-opus-5-5');
   assert.deepEqual(r.betas, ['server-side-fallback-2026-07-01']);
   assert.equal(r.fallbacks, 'default');
   assert.equal(r.output_config.effort, 'low');
@@ -24,13 +26,6 @@ test('opus request: server-side fallbacks, low effort, json schema, images befor
   const blocks = r.messages[0].content;
   assert.deepEqual(blocks.map((b) => b.type), ['image', 'image', 'text']);
   assert.deepEqual(blocks[0].source, { type: 'base64', media_type: 'image/jpeg', data: 'AAAA' });
-});
-
-test('haiku request has no fallbacks', () => {
-  const r = buildRequest('arac', [img], 'claude-haiku-5-5');
-  assert.equal(r.model, 'claude-haiku-5-5');
-  assert.equal(r.betas, undefined);
-  assert.equal(r.fallbacks, undefined);
 });
 
 test('every schema requires all its fields plus belirsiz and allows nothing else', () => {
@@ -91,19 +86,20 @@ test('readDocument: offline phone is refused before any request', async () => {
   else delete globalThis.navigator.onLine;
 });
 
-test('readDocument: opus goes through beta create with the photo as base64', async () => {
+test('readDocument: always Opus 5.5 through beta create, even if an old setting asks for another model', async () => {
   const calls = [];
   const client = {
     beta: { messages: { create: async (req) => { calls.push(req); return reply({ plaka: '06bhk412', renk: 'BEYAZ', marka: 'FIAT', model: 'EGEA', belirsiz: [] }); } } },
     messages: { create: async () => { throw new Error('wrong endpoint'); } },
   };
-  const r = await readDocument('arac', [jpeg()], { client, model: 'claude-opus-5-5' });
+  const r = await readDocument('arac', [jpeg()], { client, model: 'claude-haiku-5-5' });
   assert.deepEqual(r.fields, { plaka: '06 BHK 412', renk: 'Beyaz', marka: 'Fiat', model: 'Egea' });
+  assert.equal(calls[0].model, 'claude-opus-5-5');
   assert.equal(calls[0].messages[0].content[0].source.data, 'eA==');
 });
 
 test('readDocument: HTTP failures map to codes the screen can explain', async () => {
-  const opts = (client) => ({ client, model: 'claude-haiku-5-5' });
+  const opts = (client) => ({ client });
   await assert.rejects(readDocument('arac', [jpeg()], opts(failing(401))), code('auth'));
   await assert.rejects(readDocument('arac', [jpeg()], opts(failing(429))), code('rate'));
   await assert.rejects(readDocument('arac', [jpeg()], opts(failing(400, 'Your credit balance is too low'))), code('credit'));
@@ -117,8 +113,8 @@ test('testKey: checks the key with a tiny message (the models endpoint is not re
     messages: { create: async (req) => { calls.push(req); return { stop_reason: 'end_turn', content: [] }; } },
     models: { retrieve: async () => { throw new Error('not reachable from a browser'); } },
   };
-  assert.equal(await testKey('sk-test', 'claude-haiku-5-5', { client }), true);
-  assert.equal(calls[0].model, 'claude-haiku-5-5');
+  assert.equal(await testKey('sk-test', { client }), true);
+  assert.equal(calls[0].model, 'claude-opus-5-5');
   assert.ok(calls[0].max_tokens <= 64);
-  await assert.rejects(testKey('sk-test', 'claude-haiku-5-5', { client: failing(401) }), code('auth'));
+  await assert.rejects(testKey('sk-test', { client: failing(401) }), code('auth'));
 });

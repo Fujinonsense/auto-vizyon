@@ -1,7 +1,7 @@
 // One pasteable code with what the dad's phone needs. Built on the son's computer
 // (kurulum.html), sent over WhatsApp, pasted in Ayarlar.
 const PREFIX = 'AV1-';
-const KEYS = ['apiKey', 'model', 'scriptUrl', 'token'];
+const KEYS = ['apiKey', 'scriptUrl', 'token'];
 
 function toBase64Url(text) {
   let binary = '';

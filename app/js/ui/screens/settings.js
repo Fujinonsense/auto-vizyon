@@ -1,18 +1,13 @@
-// Ayarlar: setup code, AI key and model, KDV, WhatsApp text, Google link, backup.
+// Ayarlar: setup code, AI key, KDV, WhatsApp text, Google link, backup.
 import { getSettings, setSetting } from '../../data/repo.js';
 import { decodeSetup } from '../../lib/setupcode.js';
-import { testKey, OPUS, HAIKU } from '../../ai/claude.js';
+import { testKey } from '../../ai/claude.js';
 import { exportBackup, restoreBackup } from '../../data/backup.js';
 import { shareOrDownload } from '../../excel/xlsx.js';
 import { todayIso } from '../../lib/format.js';
 import { h, icon, toast, seg, spinner, confirmSheet } from '../dom.js';
 import { setTopbar, setTab } from '../chrome.js';
 import { showWelcome } from '../welcome.js';
-
-const MODEL_HINT = {
-  [OPUS]: 'En doğru okuyan. Araç ve ruhsat başına yaklaşık 5 cent.',
-  [HAIKU]: 'Çok ucuz, araç başına yaklaşık 0,1 cent. Zor fotoğraflarda daha sık yanılır.',
-};
 
 // Extra cards (Google sync) register here so this screen doesn't import them.
 export const settingsExtras = [];
@@ -65,13 +60,12 @@ export async function settingsScreen(params, ctx) {
       type: 'password', value: s.apiKey, placeholder: 'sk-ant-…', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false',
       onchange: () => saved('apiKey', 'Anahtar kaydedildi')(keyInput.value.trim()),
     });
-    const hint = h('small', { class: 'muted small' }, MODEL_HINT[s.model] || '');
     const testBtn = h('button', {
       class: 'btn small', type: 'button',
       onclick: async () => {
         testBtn.replaceChildren(spinner(18), 'Deneniyor');
         try {
-          await testKey(keyInput.value.trim(), (await getSettings()).model);
+          await testKey(keyInput.value.trim());
           toast('Anahtar çalışıyor');
         } catch (e) {
           toast(e.message, 'err');
@@ -85,11 +79,7 @@ export async function settingsScreen(params, ctx) {
       h('div', { class: 'row-flex' },
         testBtn,
         h('button', { class: 'btn small ghost', type: 'button', onclick: () => { keyInput.type = keyInput.type === 'password' ? 'text' : 'password'; } }, icon('eye', 18), 'Göster')),
-      field('Model', seg([[OPUS, 'En doğru'], [HAIKU, 'En ucuz']], s.model, async (v) => {
-        hint.textContent = MODEL_HINT[v];
-        await saved('model', 'Model değişti')(v);
-      }), null),
-      hint);
+      h('p', { class: 'muted small' }, 'Fotoğrafları Claude Opus 5.5 okur. Araç ve ruhsat başına yaklaşık 5 cent.'));
 
     // KDV
     const rate = h('input', {
