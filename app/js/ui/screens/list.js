@@ -65,7 +65,7 @@ export async function listScreen(params, ctx) {
     value: state.query, enterkeyhint: 'search', autocomplete: 'off',
     oninput: () => { state.query = input.value; draw(); },
   });
-  const chips = h('div', { class: 'chips' }, FILTERS.map(([key, label]) => h('button', {
+  const chips = h('div', { class: 'chips wrap filters' }, FILTERS.map(([key, label]) => h('button', {
     class: 'chip', type: 'button', 'data-key': key, onclick: () => setFilter(key),
   }, label)));
   const tools = h('div', { class: 'stack' }, h('div', { class: 'search' }, icon('search', 22), input), chips);

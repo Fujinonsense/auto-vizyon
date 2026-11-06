@@ -33,6 +33,8 @@
   --ins-soft: #e2ecf6;
   --warn: #a86a00;
   --warn-soft: #fff1d6;
+  /* Warn-coloured small text on --warn-soft ("Fatura kesilmedi"): dark enough for AA in light mode. */
+  --warn-ink: #8f5a00;
   --plate-blue: #1e47a3;
   --glass: rgba(255, 255, 255, 0.76);
   --gold-metal: linear-gradient(160deg, #efd796 0%, #c9a24a 48%, #9c7624 100%);
@@ -69,6 +71,7 @@
     --ins-soft: #13263a;
     --warn: #f2b648;
     --warn-soft: #3a2a0b;
+    --warn-ink: #f2b648;
     --glass: rgba(22, 24, 27, 0.78);
     --fill: #22252a;
     --fill-press: #2b2f35;
@@ -382,7 +385,7 @@ button.stat { cursor: pointer; }
 .badge.ok { background: var(--ok-soft); color: var(--ok); }
 .badge.due { background: var(--due-soft); color: var(--due); }
 .badge.ins { background: var(--ins-soft); color: var(--ins); }
-.badge.inv { background: var(--warn-soft); color: var(--warn); }
+.badge.inv { background: var(--warn-soft); color: var(--warn-ink); }
 .badge.inv-ok { background: var(--fill); color: var(--steel); }
 
 /* The Turkish plate: a physical object, white in both themes. */
@@ -676,6 +679,8 @@ button.photo-main { display: grid; place-content: center; justify-items: center;
 
 .chips.wrap { flex-wrap: wrap; overflow: visible; }
 .chips.wrap .chip { min-height: 38px; font-size: 14px; }
+/* The folder list filters: all five stay on screen (a second row on small phones), full-size taps. */
+.chips.wrap.filters .chip { min-height: 48px; font-size: 15px; }
 .amount-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
 .amount-wrap { position: relative; }
 .amount-wrap .amount { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; padding-right: 36px; }
@@ -779,7 +784,7 @@ button.photo-main { display: grid; place-content: center; justify-items: center;
 .add-docs { display: grid; gap: 8px; padding: 4px 2px; }
 /* Up to four document buttons: they keep their words on one line and wrap to a second row. */
 .add-docs .btn-row { display: flex; flex-wrap: wrap; }
-.add-docs .btn { flex: 1 1 auto; white-space: nowrap; }
+.add-docs .btn { flex: 1 1 auto; white-space: nowrap; min-height: 48px; }
 .pgroup { display: grid; gap: 6px; margin-bottom: 12px; }
 .pgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .pthumb { padding: 0; border: 0; border-radius: 10px; overflow: hidden; aspect-ratio: 1; background: var(--surface-2); cursor: zoom-in; }

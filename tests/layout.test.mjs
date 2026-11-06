@@ -1,0 +1,69 @@
+// What keeps the screens usable on a small iPhone: rows that wrap, 48px tap targets, readable contrast.
+// Real layout is checked in a browser; these keep the rules that give it from slipping.
+import 'fake-indexeddb/auto';
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { installDom, settle } from './helpers/fake-dom.mjs';
+
+const css = readFileSync(new URL('../app/css/app.css', import.meta.url), 'utf8');
+const declarations = (body) => Object.fromEntries(body.replace(/\/\*[\s\S]*?\*\//g, '').split(';')
+  .map((d) => [d.slice(0, d.indexOf(':')).trim(), d.slice(d.indexOf(':') + 1).trim()]).filter(([k, v]) => k && v));
+// The declarations of a rule written once at the top level of app.css, by its exact selector.
+function rule(selector) {
+  const body = css.match(new RegExp(`^${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{([^}]*)\\}`, 'm'))?.[1];
+  assert.ok(body, `${selector} is in app.css`);
+  return declarations(body);
+}
+const light = declarations(/^:root \{([^}]*)\}/m.exec(css)[1]);
+const dark = declarations(/@media \(prefers-color-scheme: dark\) \{\s*:root \{([^}]*)\}/.exec(css)[1]);
+const px = (v) => parseFloat(v);
+
+// WCAG 2 contrast ratio of two #rrggbb colours.
+function contrast(a, b) {
+  const lum = (hex) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+test('the folder list filters wrap onto a second row, so "Faturasız" is never off screen, and are 48px tall', async () => {
+  assert.equal(rule('.chips.wrap')['flex-wrap'], 'wrap');
+  assert.ok(px(rule('.chips.wrap.filters .chip')['min-height']) >= 48);
+  assert.ok(px(rule('.chips.wrap.filters .chip')['font-size']) >= 15, 'no smaller than the other filter-like chips');
+
+  const dom = installDom();
+  try {
+    const repo = await import('../app/js/data/repo.js');
+    const { listScreen } = await import('../app/js/ui/screens/list.js');
+    await repo.saveFolder({ name: 'Ali Veli', plate: '34 NMA 887' });
+    const screen = await listScreen({}, { leave: [], onLeave(fn) { this.leave.push(fn); } });
+    await settle();
+    const row = screen.querySelector('.chips');
+    assert.deepEqual(row.className.split(' '), ['chips', 'wrap', 'filters']);
+    assert.deepEqual(row.querySelectorAll('.chip').map((c) => c.textContent), ['Tümü', 'Borçlu', 'Sigorta', 'Bu ay', 'Faturasız']);
+  } finally {
+    dom.uninstall();
+  }
+});
+
+test('"Belge ekle" buttons (Kaza tutanağı too) and the cost category chips are at least 48px tall', () => {
+  assert.ok(px(rule('.add-docs .btn')['min-height']) >= 48);
+  assert.ok(px(rule('.chips.wrap.cost-cats .chip')['min-height']) >= 48);
+  assert.ok(px(rule('.cost-box > .btn.small')['min-height']) >= 48, '"Masraf ekle"');
+});
+
+test('"Fatura kesilmedi" reads at AA contrast in the light theme; the dark theme and every other warn use stay as they were', () => {
+  assert.equal(rule('.badge.inv').color, 'var(--warn-ink)');
+  assert.equal(rule('.badge.inv').background, 'var(--warn-soft)');
+  assert.ok(contrast(light['--warn-ink'], light['--warn-soft']) >= 4.5, `light ${contrast(light['--warn-ink'], light['--warn-soft']).toFixed(2)}`);
+  assert.ok(contrast(light['--warn-ink'], light['--surface']) >= 4.5, 'also on white');
+  assert.equal(dark['--warn-ink'], dark['--warn'], 'dark keeps its colour');
+  assert.deepEqual([light['--warn'], dark['--warn']], ['#a86a00', '#f2b648']);
+  assert.equal(css.match(/var\(--warn-ink\)/g).length, 1, 'only the badge');
+  assert.equal(rule('.field .hint').color, 'var(--warn)');
+  assert.equal(rule('.doc-row.err .grow > span').color, 'var(--warn)');
+});
