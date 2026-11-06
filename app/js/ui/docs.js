@@ -6,7 +6,12 @@ import { mergeAi } from '../lib/merge-ai.js';
 import { openCamera } from '../media/camera.js';
 import { prepareImage } from '../media/image.js';
 
+// Big documents get the wide guide; licences and ID cards the card-sized one.
+const DOC_FRAME = new Set(['ruhsat', 'tutanak']);
+
 // draft.folder is edited in place; draft.notify(kind) is called whenever a read starts or ends.
+// No empty tutanak here on purpose: an accident belongs to one visit, so a new visit of a car that came
+// before starts without the old report (it is never copied) yet only replaces it once one is read or typed.
 export function newDraft(folder = {}, mode = 'new') {
   return {
     mode,
@@ -45,7 +50,7 @@ export async function captureDocPhotos(kind) {
     hint: 'Gerekirse arka yüzünü de çek',
     multi: true,
     doneText: 'Oku',
-    frame: kind === 'ruhsat' ? 'doc' : 'card',
+    frame: DOC_FRAME.has(kind) ? 'doc' : 'card',
   });
   if (!res?.photos.length) return null;
   return Promise.all(res.photos.map(prepareImage));

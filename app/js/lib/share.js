@@ -2,6 +2,16 @@
 import { getPath } from './merge-ai.js';
 import { formatPhone, normalizePhone, waNumber } from './format.js';
 
+// One driver of the accident report (d is "a" or "b"), in the order an insurance form asks.
+const driverRows = (d) => [
+  ['Plaka', `tutanak.${d}Plaka`], ['Ad Soyad', `tutanak.${d}AdSoyad`], ['T.C. Kimlik No', `tutanak.${d}Tc`],
+  ['Ehliyet', `tutanak.${d}Ehliyet`], ['Telefon', `tutanak.${d}Tel`], ['Adres', `tutanak.${d}Adres`],
+  ['Alındığı yer', `tutanak.${d}AlindigiYer`],
+];
+
+// Shown only once something is in them (the others are always listed, empty or not).
+const ONLY_WHEN_FILLED = new Set(['tutanakA', 'tutanakB']);
+
 const SECTIONS = [
   ['musteri', 'Müşteri', [['Ad soyad', 'name'], ['Telefon', 'phone']]],
   ['arac', 'Araç', [
@@ -20,6 +30,8 @@ const SECTIONS = [
     ['Ad soyad', 'kimlik.adSoyad'], ['TC kimlik no', 'kimlik.tc'], ['Doğum tarihi', 'kimlik.dogumTarihi'],
     ['Seri no', 'kimlik.seriNo'], ['Son geçerlilik', 'kimlik.gecerlilik'],
   ]],
+  ['tutanakA', 'Tutanak: A sürücüsü', driverRows('a')],
+  ['tutanakB', 'Tutanak: B sürücüsü', driverRows('b')],
 ];
 
 export function folderSections(folder) {
@@ -30,7 +42,7 @@ export function folderSections(folder) {
       const raw = String(getPath(folder, path) ?? '').trim();
       return { label, value: path === 'phone' ? formatPhone(raw) : raw, path };
     }),
-  }));
+  })).filter((s) => !ONLY_WHEN_FILLED.has(s.kind) || s.rows.some((r) => r.value));
 }
 
 export function sectionCopyText(rows) {

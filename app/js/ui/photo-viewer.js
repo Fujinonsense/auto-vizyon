@@ -6,6 +6,7 @@ import { shareFiles } from '../native.js';
 
 export const KIND_LABEL = {
   arac: 'Araç', once: 'Hasar öncesi', sonra: 'Hasar sonrası', ruhsat: 'Ruhsat', ehliyet: 'Ehliyet', kimlik: 'Kimlik',
+  tutanak: 'Kaza tutanağı',
 };
 
 const fileName = (folder, i) => `${(folder?.plate || 'arac').replace(/\s/g, '')}-${i + 1}.jpg`;

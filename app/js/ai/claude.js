@@ -45,24 +45,29 @@ export function buildRequest(kind, images) {
 }
 
 const LATIN = ['marka', 'model'];
-const NAMES = ['adSoyad', 'sahibiAdSoyad', 'renk'];
+const NAMES = ['adSoyad', 'sahibiAdSoyad', 'renk', 'aAdSoyad', 'bAdSoyad'];
+// The accident report has a plate and a TC for each of its two drivers.
+const PLATES = ['plaka', 'aPlaka', 'bPlaka'];
+const TCS = ['tc', 'aTc', 'bTc'];
 
 function normalize(kind, data) {
   const unclear = new Set(Array.isArray(data.belirsiz) ? data.belirsiz : []);
   const fields = Object.fromEntries(KINDS[kind].fields.map(({ key }) => [key, String(data[key] ?? '').trim()]));
   const flag = (key, ok) => { if (fields[key] && !ok) unclear.add(key); };
 
-  if (fields.plaka) {
-    fields.plaka = normalizePlate(fields.plaka);
-    flag('plaka', isValidPlate(fields.plaka));
+  for (const key of PLATES) {
+    if (!fields[key]) continue;
+    fields[key] = normalizePlate(fields[key]);
+    flag(key, isValidPlate(fields[key]));
   }
   if (fields.saseNo) {
     fields.saseNo = normalizeVin(fields.saseNo);
     flag('saseNo', isValidVin(fields.saseNo));
   }
-  if (fields.tc) {
-    fields.tc = fields.tc.replace(/\D/g, '');
-    flag('tc', isValidTc(fields.tc));
+  for (const key of TCS) {
+    if (!fields[key]) continue;
+    fields[key] = fields[key].replace(/\D/g, '');
+    flag(key, isValidTc(fields[key]));
   }
   if (fields.tcVkn) {
     fields.tcVkn = fields.tcVkn.replace(/\D/g, '');

@@ -13,7 +13,8 @@ import { jobFields } from '../job-fields.js';
 import { openCamera } from '../../media/camera.js';
 import { prepareImage } from '../../media/image.js';
 
-const DOCS = ['ruhsat', 'ehliyet', 'kimlik'];
+const DOCS = ['ruhsat', 'ehliyet', 'kimlik', 'tutanak'];
+// The accident report is left out: an accident belongs to one visit.
 const COPY_FROM_EXISTING = ['name', 'phone', 'brand', 'model', 'modelFull', 'color', 'modelYear', 'vin', 'engineNo', 'ruhsat', 'ehliyet', 'kimlik'];
 
 export function folderForm(draft, ctx, { autoDoc } = {}) {
@@ -83,6 +84,15 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
   const fold = (kind, title, children) => h('details', { class: 'card section form-sec', 'data-kind': kind, open: hasData(kind) },
     h('summary', { class: 'section-head' }, h('h3', {}, title), icon('chevron-down', 22)), h('div', { class: 'stack' }, children));
   const hasData = (kind) => Object.values(f[kind] || {}).some(Boolean);
+  // One driver of the accident report (d is "a" or "b"), same order as on the folder screen.
+  const driverFields = (d) => [
+    field('Plaka', `tutanak.${d}Plaka`, { placeholder: '34 ABC 123', caps: 'characters', clean: normalizePlate }),
+    field('Ad Soyad', `tutanak.${d}AdSoyad`),
+    field('T.C. Kimlik No', `tutanak.${d}Tc`, { inputmode: 'numeric', caps: 'off' }),
+    field('Ehliyet', `tutanak.${d}Ehliyet`, { placeholder: '106408-B', caps: 'characters' }),
+    field('Telefon', `tutanak.${d}Tel`, { type: 'tel', inputmode: 'tel', caps: 'off' }),
+    field('Adres', `tutanak.${d}Adres`),
+    field('Alındığı yer', `tutanak.${d}AlindigiYer`)];
 
   // ---------- photos (new car only) ----------
   const photoHead = h('div', { class: 'photo-head' });
@@ -260,7 +270,9 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
       field('Ad soyad', 'kimlik.adSoyad'),
       field('TC kimlik no', 'kimlik.tc', { inputmode: 'numeric', caps: 'off' }),
       h('div', { class: 'grid2' }, field('Doğum tarihi', 'kimlik.dogumTarihi', { inputmode: 'numeric' }), field('Seri no', 'kimlik.seriNo', { caps: 'characters' })),
-      field('Son geçerlilik', 'kimlik.gecerlilik', { inputmode: 'numeric' })]));
+      field('Son geçerlilik', 'kimlik.gecerlilik', { inputmode: 'numeric' })]),
+    fold('tutanak', 'Tutanak: A sürücüsü', driverFields('a')),
+    fold('tutanak', 'Tutanak: B sürücüsü', driverFields('b')));
 
   if (draft.mode === 'new') {
     getSettings().then((s) => {

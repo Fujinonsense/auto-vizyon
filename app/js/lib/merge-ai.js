@@ -16,6 +16,13 @@ export const AI_PATHS = {
     adSoyad: 'kimlik.adSoyad', tc: 'kimlik.tc', dogumTarihi: 'kimlik.dogumTarihi', seriNo: 'kimlik.seriNo',
     gecerlilik: 'kimlik.gecerlilik',
   },
+  // Never used for the folder name: which of the two drivers is the customer is not known.
+  tutanak: {
+    aAdSoyad: 'tutanak.aAdSoyad', aTc: 'tutanak.aTc', aEhliyet: 'tutanak.aEhliyet', aAlindigiYer: 'tutanak.aAlindigiYer',
+    aAdres: 'tutanak.aAdres', aTel: 'tutanak.aTel', aPlaka: 'tutanak.aPlaka',
+    bAdSoyad: 'tutanak.bAdSoyad', bTc: 'tutanak.bTc', bEhliyet: 'tutanak.bEhliyet', bAlindigiYer: 'tutanak.bAlindigiYer',
+    bAdres: 'tutanak.bAdres', bTel: 'tutanak.bTel', bPlaka: 'tutanak.bPlaka',
+  },
 };
 
 export function getPath(obj, path) {

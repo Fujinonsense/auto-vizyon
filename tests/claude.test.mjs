@@ -35,6 +35,48 @@ test('every schema requires all its fields plus belirsiz and allows nothing else
   }
 });
 
+const TUTANAK_KEYS = ['AdSoyad', 'Tc', 'Ehliyet', 'AlindigiYer', 'Adres', 'Tel', 'Plaka'];
+
+test('kaza tutanağı: the two drivers and their plates, nothing else', () => {
+  const k = KINDS.tutanak;
+  assert.equal(k.label, 'Kaza tutanağı');
+  assert.deepEqual(k.fields.map((f) => f.key), [...TUTANAK_KEYS.map((x) => `a${x}`), ...TUTANAK_KEYS.map((x) => `b${x}`)]);
+  assert.deepEqual([...k.schema.required].sort(), [...k.fields.map((f) => f.key), 'belirsiz'].sort());
+  for (const words of ['Sürücü Bilgileri', 'Araç Bilgileri', '106408-B', 'belirsiz', 'kroki', 'imza']) assert.ok(k.prompt.includes(words), words);
+  assert.deepEqual(buildRequest('tutanak', [img]).output_config.format.schema, k.schema);
+});
+
+test('parseResponse (tutanak): TC, plate and name cleaned like the other documents, unreadable left empty', () => {
+  const r = parseResponse('tutanak', reply({
+    aAdSoyad: 'UĞURCAN KAYA', aTc: '100 000 001 46', aEhliyet: '482190-B', aAlindigiYer: 'Kadıköy', aAdres: 'Moda Cad. No 12',
+    aTel: '0532 418 27 90', aPlaka: '34nma887',
+    bAdSoyad: 'IŞIL İNCE', bTc: '12345678901', bEhliyet: '106408-B', bAlindigiYer: '', bAdres: '', bTel: '', bPlaka: '35 kr 77810',
+    belirsiz: ['bAdres', 'bTel', 'bilinmeyen'],
+  }));
+  assert.equal(r.fields.aTc, '10000000146');
+  assert.equal(r.fields.aPlaka, '34 NMA 887');
+  assert.equal(r.fields.aAdSoyad, 'Uğurcan Kaya');
+  assert.equal(r.fields.bAdSoyad, 'Işıl İnce');
+  assert.equal(r.fields.aTel, '0532 418 27 90');
+  assert.equal(r.fields.aEhliyet, '482190-B');
+  assert.equal(r.fields.bAdres, '');
+  assert.equal(r.fields.bTel, '');
+  assert.ok(r.unclear.includes('bTc'), 'a TC that fails the checksum is flagged');
+  assert.ok(r.unclear.includes('bPlaka'), 'an impossible plate is flagged');
+  assert.ok(!r.unclear.includes('aTc') && !r.unclear.includes('aPlaka'));
+  assert.ok(r.unclear.includes('bAdres') && r.unclear.includes('bTel'));
+  assert.ok(!r.unclear.includes('bilinmeyen'));
+  assert.deepEqual(Object.keys(r.fields), KINDS.tutanak.fields.map((f) => f.key));
+});
+
+test('the sample answers (no API key) cover every document and read cleanly', async () => {
+  const { mockClient } = await import('../app/js/ai/mock.js');
+  await Promise.all(Object.keys(KINDS).map(async (kind) => {
+    const r = parseResponse(kind, await mockClient.beta.messages.create(buildRequest(kind, [img])));
+    assert.ok(Object.values(r.fields).filter(Boolean).length >= 4, kind);
+  }));
+});
+
 test('parseResponse: normalizes plate and casing, flags a bad VIN and a bad TC', () => {
   const r = parseResponse('ruhsat', reply({
     plaka: '34nma887', marka: 'AUDI', model: 'A7', ticariAdi: 'A7 SPORTBACK 3.0 TDI', tipi: '4G', modelYili: '2019',

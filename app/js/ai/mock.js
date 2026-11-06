@@ -13,6 +13,12 @@ const DATA = {
     dogumTarihi: '21.04.1991', belirsiz: [],
   },
   kimlik: { adSoyad: 'UĞURCAN KAYA', tc: '10000000146', dogumTarihi: '21.04.1991', seriNo: 'A12B34567', gecerlilik: '21.04.2031', belirsiz: [] },
+  tutanak: {
+    aAdSoyad: 'UĞURCAN KAYA', aTc: '10000000146', aEhliyet: '482190-B', aAlindigiYer: 'Kadıköy', aAdres: 'Moda Cad. No 12 Kadıköy İstanbul',
+    aTel: '0532 418 27 90', aPlaka: '34 NMA 887',
+    bAdSoyad: 'AYŞE KARA', bTc: '19090909018', bEhliyet: '106408-B', bAlindigiYer: 'Konak', bAdres: '',
+    bTel: '0505 377 64 20', bPlaka: '35KR7781', belirsiz: ['bAdres'],
+  },
 };
 
 function answer(req) {

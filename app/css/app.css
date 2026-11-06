@@ -776,6 +776,9 @@ button.photo-main { display: grid; place-content: center; justify-items: center;
 .jobamt .money { font-size: 18px; }
 .due-line { padding-top: 10px; border-top: 1px solid var(--line); color: var(--due); text-align: right; }
 .add-docs { display: grid; gap: 8px; padding: 4px 2px; }
+/* Up to four document buttons: they keep their words on one line and wrap to a second row. */
+.add-docs .btn-row { display: flex; flex-wrap: wrap; }
+.add-docs .btn { flex: 1 1 auto; white-space: nowrap; }
 .pgroup { display: grid; gap: 6px; margin-bottom: 12px; }
 .pgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .pthumb { padding: 0; border: 0; border-radius: 10px; overflow: hidden; aspect-ratio: 1; background: var(--surface-2); cursor: zoom-in; }

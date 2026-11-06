@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeAi, markManual, getPath, setPath } from '../app/js/lib/merge-ai.js';
+import { mergeAi, markManual, getPath, setPath, AI_PATHS } from '../app/js/lib/merge-ai.js';
+import { KINDS } from '../app/js/ai/schemas.js';
 
 const fresh = () => ({ name: '', plate: '', ruhsat: {}, ehliyet: {}, kimlik: {}, aiFilled: [], unclear: [] });
 
@@ -51,6 +52,33 @@ test('a name typed by hand is never replaced', () => {
   const f = { ...fresh(), name: 'Mehmet Usta' };
   mergeAi(f, 'ruhsat', { sahibiAdSoyad: 'Uğurcan Kaya' }, []);
   assert.equal(f.name, 'Mehmet Usta');
+});
+
+test('every field the AI reads has a place in the folder', () => {
+  for (const [kind, k] of Object.entries(KINDS)) {
+    assert.deepEqual(Object.keys(AI_PATHS[kind] || {}).sort(), k.fields.map((f) => f.key).sort(), kind);
+  }
+  assert.deepEqual(Object.values(AI_PATHS.tutanak), KINDS.tutanak.fields.map((f) => `tutanak.${f.key}`));
+});
+
+test('kaza tutanağı: fills an empty folder, keeps what was typed by hand, never names the folder', () => {
+  const f = fresh();
+  assert.equal('tutanak' in f, false, 'a folder from before the accident report');
+  const changed = mergeAi(f, 'tutanak', { aAdSoyad: 'Ali Veli', aTel: '0532 418 27 90', bPlaka: '35 KR 7781', bTc: '' }, ['bPlaka']);
+  assert.equal(f.tutanak.aAdSoyad, 'Ali Veli');
+  assert.equal(f.tutanak.bPlaka, '35 KR 7781');
+  assert.equal('bTc' in f.tutanak, false);
+  assert.deepEqual(changed.sort(), ['tutanak.aAdSoyad', 'tutanak.aTel', 'tutanak.bPlaka']);
+  assert.ok(f.unclear.includes('tutanak.bPlaka'));
+  assert.equal(f.name, '', 'which driver is the customer is not known');
+
+  const typed = { ...fresh(), tutanak: { aTel: '0532 000 00 00' } };
+  mergeAi(typed, 'tutanak', { aAdSoyad: 'Ali Veli', aTel: '0532 418 27 90' }, []);
+  assert.equal(typed.tutanak.aTel, '0532 000 00 00');
+  assert.equal(typed.tutanak.aAdSoyad, 'Ali Veli');
+  markManual(f, 'tutanak.aAdSoyad');
+  mergeAi(f, 'tutanak', { aAdSoyad: 'Başka Biri' }, []);
+  assert.equal(f.tutanak.aAdSoyad, 'Ali Veli', 'a field corrected by hand stays');
 });
 
 test('markManual: an edited field stops being AI-filled or unclear', () => {

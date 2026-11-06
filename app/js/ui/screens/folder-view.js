@@ -1,5 +1,6 @@
 // One customer's folder: call / WhatsApp, jobs, every field with its copy button, photos.
 import { getFolder, jobsForFolder, listPhotos, onChange, deleteFolder, addPhoto, getSettings, saveFolder } from '../../data/repo.js';
+import { KINDS } from '../../ai/schemas.js';
 import { folderSections, sectionCopyText, folderCopyText, readyMessage, waLink, telLink } from '../../lib/share.js';
 import { formatMoney, formatDate, formatPhone } from '../../lib/format.js';
 import { costTotal } from '../../lib/costs.js';
@@ -13,7 +14,7 @@ import { openCamera } from '../../media/camera.js';
 import { prepareImage } from '../../media/image.js';
 
 const COVER_KINDS = ['arac', 'once', 'sonra'];
-const GROUPS = [['Araç', ['arac']], ['Hasar öncesi', ['once']], ['Hasar sonrası', ['sonra']], ['Belgeler', ['ruhsat', 'ehliyet', 'kimlik']]];
+const GROUPS = [['Araç', ['arac']], ['Hasar öncesi', ['once']], ['Hasar sonrası', ['sonra']], ['Belgeler', ['ruhsat', 'ehliyet', 'kimlik', 'tutanak']]];
 
 function quick(label, ic, attrs) {
   return h(attrs.href ? 'a' : 'button', { class: 'qa-btn', type: attrs.href ? null : 'button', ...attrs }, icon(ic, 26), h('span', {}, label));
@@ -116,7 +117,10 @@ export async function folderView({ id }, ctx) {
 
     // Info with copy buttons
     const sections = folderSections(folder);
-    const missing = sections.filter((s) => ['ruhsat', 'ehliyet', 'kimlik'].includes(s.kind) && !s.rows.some((r) => r.value));
+    const missing = sections.filter((s) => ['ruhsat', 'ehliyet', 'kimlik'].includes(s.kind) && !s.rows.some((r) => r.value))
+      .map((s) => ({ kind: s.kind, title: s.title }));
+    // The accident report has sections only once something was read or typed into it.
+    if (!sections.some((s) => s.kind.startsWith('tutanak'))) missing.push({ kind: 'tutanak', title: KINDS.tutanak.label });
     const infoSecs = sections.filter((s) => s.rows.some((r) => r.value)).map((s) => h('section', { class: 'card section' },
       h('div', { class: 'section-head' }, h('h3', {}, s.title),
         h('button', { class: 'btn small ghost', type: 'button', onclick: () => copyText(sectionCopyText(s.rows), `${s.title} bilgileri`) }, icon('copy', 18), 'Tümünü kopyala')),
