@@ -5,6 +5,7 @@ import { newId } from '../lib/uuid.js';
 import { plateKey } from '../lib/validate.js';
 import { computeVat } from '../lib/vat.js';
 import { todayIso } from '../lib/format.js';
+import { normalizeCosts } from '../lib/costs.js';
 
 export const DEFAULT_SETTINGS = {
   apiKey: '',
@@ -37,11 +38,18 @@ function emit(change) {
 const queued = (kind, id) => ({ kind, id, at: Date.now() });
 const nextStamp = (prev) => Math.max(Date.now(), (prev?.updatedAt || 0) + 1);
 
+// Jobs saved before costs and the invoice flag existed read as "no costs, not invoiced".
+function settleJobExtras(job) {
+  job.costs = normalizeCosts(job.costs);
+  job.invoiced = job.invoiced === true;
+  return job;
+}
+
 export async function saveFolder(partial) {
   const prev = partial.id ? await get('folders', partial.id) : undefined;
   const folder = {
     name: '', phone: '', plate: '', brand: '', model: '', modelFull: '', color: '', modelYear: '',
-    vin: '', engineNo: '', note: '', ruhsat: {}, ehliyet: {}, kimlik: {}, unclear: [],
+    vin: '', engineNo: '', note: '', ruhsat: {}, ehliyet: {}, kimlik: {}, tutanak: {}, unclear: [],
     ...prev,
     ...partial,
     id: partial.id || newId(),
@@ -113,7 +121,7 @@ export async function saveJob(partial) {
   const job = {
     date: todayIso(), description: '', parts: [], amount: 0,
     vatMode: defaults.vatMode, vatRate: defaults.vatRate,
-    paid: false, payer: 'musteri', insurer: '', claimNo: '', note: '',
+    paid: false, payer: 'musteri', insurer: '', claimNo: '', note: '', costs: [], invoiced: false,
     ...prev,
     ...partial,
     id: partial.id || newId(),
@@ -121,6 +129,7 @@ export async function saveJob(partial) {
     createdAt: prev?.createdAt || Date.now(),
     updatedAt: nextStamp(prev),
   };
+  settleJobExtras(job);
   Object.assign(job, computeVat({ amount: job.amount, mode: job.vatMode, rate: job.vatRate }));
   await write(['jobs', 'outbox'], (s) => {
     s.jobs.put(job);
@@ -245,14 +254,14 @@ export async function outboxIds() {
 }
 
 // Rows that came from the Google sheet: written as-is, never queued back, local-only
-// fields (cover, document objects) kept.
+// fields (cover, document objects) kept, missing costs and invoice flag read as none.
 export async function applyRemote({ folders = [], jobs = [] }) {
   if (!folders.length && !jobs.length) return;
   await write(['folders', 'jobs'], (s) => {
     for (const f of folders) {
       s.folders.get(f.id).onsuccess = (e) => {
         const merged = {
-          ruhsat: {}, ehliyet: {}, kimlik: {}, unclear: [], coverPhotoId: null, coverThumb: null,
+          ruhsat: {}, ehliyet: {}, kimlik: {}, tutanak: {}, unclear: [], coverPhotoId: null, coverThumb: null,
           ...e.target.result,
           ...f,
         };
@@ -261,7 +270,7 @@ export async function applyRemote({ folders = [], jobs = [] }) {
       };
     }
     for (const j of jobs) {
-      s.jobs.get(j.id).onsuccess = (e) => s.jobs.put({ parts: [], ...e.target.result, ...j });
+      s.jobs.get(j.id).onsuccess = (e) => s.jobs.put(settleJobExtras({ parts: [], ...e.target.result, ...j }));
     }
   });
   emit({ type: 'remote' });
