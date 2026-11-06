@@ -9,7 +9,8 @@ const repo = await import('../app/js/data/repo.js');
 const { clearAll } = await import('../app/js/data/db.js');
 const { route } = await import('../app/js/ui/router.js');
 const { h } = await import('../app/js/ui/dom.js');
-const { newDraft, readInto } = await import('../app/js/ui/docs.js');
+const { newDraft, readInto, folderToSave } = await import('../app/js/ui/docs.js');
+const { mergeAi } = await import('../app/js/lib/merge-ai.js');
 const { editScreen, folderForm } = await import('../app/js/ui/screens/folder-edit.js');
 await import('../app/js/ai/mock.js'); // loaded before a read asks for it
 
@@ -118,4 +119,41 @@ test('folder form: phones read off an accident report are shown spaced and saved
   const saved = await repo.getFolder(f.id);
   assert.equal(saved.tutanak.aTel, '05324182790');
   assert.equal(saved.tutanak.bTel, '05053776420');
+});
+
+test('same plate: a new visit keeps the earlier accident report with its AI marks, so reading it again replaces it', async () => {
+  const first = newDraft();
+  mergeAi(first.folder, 'arac', { plaka: '34 NMA 887', renk: 'Siyah', marka: 'Audi', model: 'A7' }, []);
+  mergeAi(first.folder, 'tutanak', { aAdSoyad: 'Uğurcan Kaya', bAdSoyad: 'Mehmet Yılmaz', bAdres: 'Alsancak Mah. İzmir' }, []);
+  const v1 = await repo.saveFolder(await folderToSave(first));
+
+  // The next visit in the new-car flow: the plate is typed, the car is found, Kaydet with no report.
+  const visit = await openForm(newDraft());
+  type(fieldIn(visit, 'Plaka'), '34nma887', { leave: true });
+  await settle();
+  assert.equal(visit.querySelector('.banner').hidden, false, '"Bu araç daha önce gelmiş"');
+  await Promise.all(byText(visit, 'button', 'Kaydet').click());
+  await settle();
+  const v2 = await repo.getFolder(v1.id);
+  assert.equal((await repo.allRecords()).folders.length, 1, 'saved into the same folder');
+  assert.equal(v2.tutanak.bAdSoyad, 'Mehmet Yılmaz');
+  assert.ok(v2.aiFilled.includes('tutanak.bAdres'), 'the earlier reading is still known as one');
+
+  // Later, from "Bilgileri düzenle", the report is photographed again.
+  const draft = newDraft(v2, 'edit');
+  const edit = await openForm(draft);
+  await read(draft, 'tutanak');
+  const [a, b] = edit.querySelectorAll('details[data-kind="tutanak"]');
+  assert.equal(fieldIn(a, 'Ad Soyad').value, 'Uğurcan Kaya');
+  assert.equal(fieldIn(b, 'Ad Soyad').value, 'Ayşe Kara', 'the new driver B, not the old one');
+  const address = fieldIn(b, 'Adres');
+  assert.equal(address.value, '', 'the old address is gone');
+  assert.ok(address.parentNode.classList.contains('unclear'));
+  assert.equal(address.parentNode.querySelector('.hint').textContent, 'Yapay zeka okuyamadı, kontrol et');
+  await Promise.all(byText(edit, 'button', 'Kaydet').click());
+  await settle();
+  const v3 = await repo.getFolder(v1.id);
+  assert.equal(v3.tutanak.bAdSoyad, 'Ayşe Kara');
+  assert.equal('bAdres' in v3.tutanak, false);
+  assert.ok(v3.unclear.includes('tutanak.bAdres'));
 });

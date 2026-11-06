@@ -53,10 +53,11 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
     if (!x) return;
     const v = getPath(f, path) || '';
     if (document.activeElement !== x.input && x.input.value !== v) x.input.value = v;
-    const unclear = !!v && (f.unclear || []).includes(path);
+    // Marked by the AI: unsure of what it wrote, or (the accident report) left it empty, unreadable.
+    const unclear = (f.unclear || []).includes(path);
     x.wrap.classList.toggle('ai', !!v && (f.aiFilled || []).includes(path));
     x.wrap.classList.toggle('unclear', unclear);
-    x.hint.textContent = unclear ? 'Yapay zeka emin değil, kontrol et' : '';
+    x.hint.textContent = !unclear ? '' : v ? 'Yapay zeka emin değil, kontrol et' : 'Yapay zeka okuyamadı, kontrol et';
     if (flash) {
       x.wrap.classList.remove('flash');
       void x.wrap.offsetWidth;
@@ -231,7 +232,7 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
     }
     saveBtn.replaceChildren(spinner(), 'Kaydediliyor');
     try {
-      const folder = await saveFolder(folderToSave(draft));
+      const folder = await saveFolder(await folderToSave(draft));
       let saved = null;
       const j = job?.read();
       if (j && (j.amount || j.description || j.parts.length || j.costs.length)) saved = await saveJob({ ...j, folderId: folder.id });

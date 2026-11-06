@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeAi, markManual, getPath, setPath, AI_PATHS } from '../app/js/lib/merge-ai.js';
+import { mergeAi, replaceAi, markManual, getPath, setPath, AI_PATHS } from '../app/js/lib/merge-ai.js';
 import { KINDS } from '../app/js/ai/schemas.js';
 
 const fresh = () => ({ name: '', plate: '', ruhsat: {}, ehliyet: {}, kimlik: {}, aiFilled: [], unclear: [] });
@@ -79,6 +79,64 @@ test('kaza tutanağı: fills an empty folder, keeps what was typed by hand, neve
   markManual(f, 'tutanak.aAdSoyad');
   mergeAi(f, 'tutanak', { aAdSoyad: 'Başka Biri' }, []);
   assert.equal(f.tutanak.aAdSoyad, 'Ali Veli', 'a field corrected by hand stays');
+});
+
+// Two readings of accident reports, as parseResponse gives them (B differs, report 2 misses three fields).
+const report1 = {
+  aAdSoyad: 'Uğurcan Kaya', aTc: '10000000146', aTel: '05324182790', aPlaka: '34 NMA 887',
+  bAdSoyad: 'Mehmet Yılmaz', bTc: '12345678950', bEhliyet: '554433-B', bAlindigiYer: 'Konak', bAdres: 'Alsancak Mah. İzmir',
+  bTel: '05320000000', bPlaka: '06 ABC 123',
+};
+const report2 = {
+  aAdSoyad: 'Uğurcan Kaya', aTc: '10000000146', aTel: '05324182790', aPlaka: '34 NMA 887',
+  bAdSoyad: 'Ayşe Kara', bTc: '19090909018', bEhliyet: '106408-B', bAlindigiYer: '', bAdres: '', bTel: '', bPlaka: '35 KR 7781',
+};
+
+test('kaza tutanağı read again: the new photo replaces the last reading, fields typed by hand stay', () => {
+  const f = fresh();
+  replaceAi(f, 'tutanak', report1, ['bTc']);
+  setPath(f, 'tutanak.aEhliyet', '482190-B'); // typed by hand, as the form does it
+  markManual(f, 'tutanak.aEhliyet');
+  const changed = replaceAi(f, 'tutanak', report2, ['bAdres']);
+  assert.deepEqual(f.tutanak, {
+    aEhliyet: '482190-B', aAdSoyad: 'Uğurcan Kaya', aTc: '10000000146', aTel: '05324182790', aPlaka: '34 NMA 887',
+    bAdSoyad: 'Ayşe Kara', bTc: '19090909018', bEhliyet: '106408-B', bPlaka: '35 KR 7781',
+  });
+  assert.equal(f.tutanak.bAdres, undefined, 'nothing kept from the first report');
+  assert.deepEqual(f.unclear, ['tutanak.bAdres'], 'the old marks go, the new one is there');
+  assert.ok(!f.aiFilled.includes('tutanak.aEhliyet') && !f.aiFilled.includes('tutanak.bAdres'));
+  assert.ok(f.aiFilled.includes('tutanak.bAdSoyad'));
+  assert.ok(changed.includes('tutanak.bAdSoyad') && changed.includes('tutanak.aAdSoyad'), 'everything read is written again');
+});
+
+test('kaza tutanağı: a field left empty and listed as unclear is marked to check until it is typed', () => {
+  const f = fresh();
+  replaceAi(f, 'tutanak', { ...report2, bAdres: '' }, ['bAdres']);
+  assert.equal(getPath(f, 'tutanak.bAdres'), undefined);
+  assert.ok(f.unclear.includes('tutanak.bAdres'));
+  setPath(f, 'tutanak.bAdres', 'Konak İzmir');
+  markManual(f, 'tutanak.bAdres');
+  assert.ok(!f.unclear.includes('tutanak.bAdres'));
+  replaceAi(f, 'tutanak', { ...report2, bAdres: '' }, ['bAdres']);
+  assert.equal(f.tutanak.bAdres, 'Konak İzmir', 'typed by hand: never wiped or marked by a later reading');
+  assert.ok(!f.unclear.includes('tutanak.bAdres'));
+});
+
+test('kaza tutanağı: a photo with nothing readable still replaces the last reading', () => {
+  const f = fresh();
+  replaceAi(f, 'tutanak', report1, []);
+  const blank = Object.fromEntries(Object.keys(report1).map((k) => [k, '']));
+  assert.deepEqual(replaceAi(f, 'tutanak', blank, ['aAdSoyad']), []);
+  assert.deepEqual(f.tutanak, {}, 'an empty report, not the old one');
+  assert.deepEqual(f.unclear, ['tutanak.aAdSoyad']);
+  assert.deepEqual(f.aiFilled, []);
+});
+
+test('the other documents still only fill in: an empty field listed as unclear changes nothing', () => {
+  const f = { ...fresh(), plate: '34 NMA 887', aiFilled: ['plate'] };
+  mergeAi(f, 'ruhsat', { plaka: '', saseNo: '' }, ['plaka', 'saseNo']);
+  assert.equal(f.plate, '34 NMA 887');
+  assert.deepEqual(f.unclear, []);
 });
 
 test('markManual: an edited field stops being AI-filled or unclear', () => {
