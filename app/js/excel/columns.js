@@ -1,6 +1,7 @@
 // One column list for the Excel file and the Google sheet. Reading back is forgiving:
 // headers match without case or Turkish letters, empty cells never wipe data (except the
-// cost items and the invoice flag, where an empty cell means "none" and "not invoiced").
+// cost items and the invoice flag, where an empty cell under the exact header means "none"
+// and "not invoiced").
 // New columns only ever go at the end, so rows already in the sheet never shift.
 import { foldTr } from '../lib/search.js';
 import { formatPhone, normalizePhone, parseMoney } from '../lib/format.js';
@@ -127,13 +128,14 @@ const isInvoiced = (v) => v === true || v === 1 || (typeof v === 'string' && fol
 
 export function rowToJob(row) {
   const cells = present(row);
-  const headers = new Set(Object.keys(row).map(headerKey));
   const job = {};
   for (const c of JOB_COLUMNS) {
     const key = headerKey(c.header);
-    // Only a sheet that has these columns says anything about them; there an empty cell is an answer.
+    // Something in the cell is read under any spelling of the header. An empty cell is an answer ("none",
+    // "not invoiced") only under the exact header: the Google script writes there and nowhere else, so
+    // under a header typed a little differently an empty cell says nothing.
     if (c.type === 'costs' || c.type === 'invoice') {
-      if (!headers.has(key)) continue;
+      if (!cells.has(key) && !(c.header in row)) continue;
       if (c.type === 'costs') job.costs = costsFromText(cells.get(key));
       else job.invoiced = isInvoiced(cells.get(key));
       continue;

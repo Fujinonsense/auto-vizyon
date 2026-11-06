@@ -98,6 +98,25 @@ test('rowToJob: empty Maliyet Kalemleri and Fatura cells mean no costs and not i
   assert.equal('invoiced' in old, false);
 });
 
+test('rowToJob: an empty cost items or Fatura cell is an answer only under the exact header the Google script writes', () => {
+  // The live sheet's headers were typed by hand; the deployed script writes only under the exact ones.
+  const typo = rowToJob({ 'Kayıt No': 'j1', 'Maliyet kalemleri': '', 'Fatura ': '' });
+  assert.equal('costs' in typo, false, 'nothing was ever written there');
+  assert.equal('invoiced' in typo, false);
+  const typed = rowToJob({ 'Kayıt No': 'j1', 'Maliyet kalemleri': 'Boya: 700', 'Fatura ': 'Kesildi' });
+  assert.deepEqual(typed.costs, [{ cat: 'boya', label: '', amount: 700 }], 'something typed there is still read');
+  assert.equal(typed.invoiced, true);
+
+  // The pull of such a row leaves the phone's costs and invoice flag alone.
+  const local = { ...job, costs: [{ cat: 'boya', label: '', amount: 700 }], invoiced: true };
+  const row = jobToRow(local, folder);
+  delete row['Maliyet Kalemleri'];
+  delete row['Fatura'];
+  Object.assign(row, { 'Maliyet kalemleri': '', 'Fatura ': '' });
+  const pulled = mergeRemote({ folders: new Map(), jobs: new Map([[local.id, local]]) }, { folders: [], jobs: [{ ...rowToJob(row), remoteStamp: 9 }] }, new Set());
+  assert.deepEqual(pulled.jobs, []);
+});
+
 test('rowToJob: Fatura typed by hand in any case', () => {
   assert.equal(rowToJob({ FATURA: 'KESİLDİ' }).invoiced, true);
   assert.equal(rowToJob({ fatura: ' kesildi ' }).invoiced, true);
