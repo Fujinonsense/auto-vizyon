@@ -67,3 +67,10 @@ test('"Fatura kesilmedi" reads at AA contrast in the light theme; the dark theme
   assert.equal(rule('.field .hint').color, 'var(--warn)');
   assert.equal(rule('.doc-row.err .grow > span').color, 'var(--warn)');
 });
+
+test('next to a section title that keeps its line ("Tutanak A"), the copy button wraps its own words neatly', () => {
+  const btn = rule('.section-head .btn');
+  assert.equal(btn['white-space'], 'normal');
+  assert.equal(btn['text-align'], 'center');
+  assert.ok(Number(btn['line-height']) <= 1.25, 'two lines fit the 44px button');
+});

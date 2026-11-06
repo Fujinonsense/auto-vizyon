@@ -26,7 +26,7 @@ test('folderSections: the accident report sections appear only once they have so
   const onlyA = folderSections({ ...folder, tutanak: { aAdSoyad: 'Ali Veli' } });
   assert.deepEqual(onlyA.map((s) => s.kind), ['musteri', 'arac', 'ruhsat', 'ehliyet', 'kimlik', 'tutanakA']);
   const both = folderSections({ ...folder, tutanak: { aAdSoyad: 'Ali Veli', bTel: '0505 377 64 20' } });
-  assert.deepEqual(both.slice(5).map((s) => s.title), ['Tutanak A', 'Tutanak B']);
+  assert.deepEqual(both.slice(5).map((s) => s.title), ['Tutanak\u00a0A', 'Tutanak\u00a0B'], 'the word and its letter never part on a narrow phone');
 });
 
 test('accident report B: rows in the agreed order, copy text without the empty ones', () => {
@@ -45,7 +45,24 @@ test('accident report B: rows in the agreed order, copy text without the empty o
   ].join('\n'));
   const partial = folderSections({ ...folder, tutanak: { bPlaka: '35 KR 7781', bTel: '0505 377 64 20' } }).find((s) => s.kind === 'tutanakB');
   assert.equal(sectionCopyText(partial.rows), 'Plaka: 35 KR 7781\nTelefon: 0505 377 64 20');
-  assert.ok(folderCopyText({ ...folder, tutanak }).endsWith('\n\nPlaka: 35 KR 7781\nAd Soyad: Ayşe Kara\nT.C. Kimlik No: 19090909018\nEhliyet: 106408-B\nTelefon: 0505 377 64 20\nAdres: Alsancak Mah. 1453 Sok. İzmir\nAlındığı yer: Konak'));
+  assert.ok(folderCopyText({ ...folder, tutanak }).endsWith('\n\nTutanak B\nPlaka: 35 KR 7781\nAd Soyad: Ayşe Kara\nT.C. Kimlik No: 19090909018\nEhliyet: 106408-B\nTelefon: 0505 377 64 20\nAdres: Alsancak Mah. 1453 Sok. İzmir\nAlındığı yer: Konak'));
+});
+
+test('"Hepsini kopyala": each driver block starts with its heading, in plain text; the other blocks need none', () => {
+  const tutanak = {
+    aPlaka: '34 NMA 887', aAdSoyad: 'Uğurcan Kaya', aTel: '05324182790',
+    bPlaka: '35 KR 7781', bAdSoyad: 'Ayşe Kara', bTel: '05053776420',
+  };
+  const text = folderCopyText({ ...folder, tutanak });
+  assert.ok(text.startsWith('Ad soyad: Uğurcan Kaya\nTelefon: 0532 418 27 90\n\nPlaka: 34 NMA 887'), 'customer and car as before');
+  assert.ok(text.endsWith([
+    'Tutanak A', 'Plaka: 34 NMA 887', 'Ad Soyad: Uğurcan Kaya', 'Telefon: 0532 418 27 90', '',
+    'Tutanak B', 'Plaka: 35 KR 7781', 'Ad Soyad: Ayşe Kara', 'Telefon: 0505 377 64 20',
+  ].join('\n')));
+  assert.ok(!text.includes('\u00a0'), 'pastes as ordinary text');
+  assert.equal(text.match(/^Plaka:/gm).length, 3, 'three plates, each under its own heading');
+  const b = folderSections({ ...folder, tutanak }).find((s) => s.kind === 'tutanakB');
+  assert.ok(sectionCopyText(b.rows).startsWith('Plaka: 35 KR 7781'), '"Tümünü kopyala" of one block stays without a heading');
 });
 
 test('accident report phones are shown and copied like the customer phone', () => {

@@ -432,6 +432,8 @@ button.stat { cursor: pointer; }
 .section { padding: 8px 16px 14px; }
 .section-head { display: flex; align-items: center; gap: 8px; min-height: 48px; }
 .section-head h3 { flex: 1; }
+/* On a narrow phone the title keeps its line ("Tutanak A") and the button next to it wraps its own words. */
+.section-head .btn { white-space: normal; line-height: 1.2; text-align: center; }
 
 .copyrow { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 4px; min-height: 56px; border-top: 1px solid var(--line); }
 .copyrow:first-of-type { border-top: 0; }

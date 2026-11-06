@@ -157,3 +157,9 @@ test('same plate: a new visit keeps the earlier accident report with its AI mark
   assert.equal('bAdres' in v3.tutanak, false);
   assert.ok(v3.unclear.includes('tutanak.bAdres'));
 });
+
+test('folder form: the two driver sections are "Tutanak A" and "Tutanak B", word and letter never apart', async () => {
+  const form = await openForm(newDraft({ name: 'Ali Veli' }, 'edit'));
+  const titles = form.querySelectorAll('details[data-kind="tutanak"] summary h3').map((t) => t.textContent);
+  assert.deepEqual(titles, ['Tutanak\u00a0A', 'Tutanak\u00a0B']);
+});

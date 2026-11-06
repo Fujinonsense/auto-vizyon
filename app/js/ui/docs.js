@@ -12,7 +12,7 @@ import { prepareImage } from '../media/image.js';
 // licences and ID cards the card-sized one.
 const FRAMES = new Map([['ruhsat', 'doc'], ['tutanak', 'page']]);
 // Both drivers' boxes are only in the photo when the whole report is; the others may need their back too.
-const HINTS = new Map([['tutanak', 'Tutanağın tamamını çerçeveye alın']]);
+const HINTS = new Map([['tutanak', 'Tutanağın tamamını çerçeveye al']]);
 // The accident report is one reading of one accident: a new photo replaces the last reading. The other
 // documents fill in and correct what was read before.
 const REPLACED = new Set(['tutanak']);

@@ -80,7 +80,7 @@ afterEach(() => {
 
 test('document camera: the accident report gets the upright page guide and a whole-page hint', () => {
   assert.deepEqual(docCameraOptions('tutanak'), {
-    title: 'Kaza tutanağı fotoğrafı', hint: 'Tutanağın tamamını çerçeveye alın', multi: true, doneText: 'Oku', frame: 'page',
+    title: 'Kaza tutanağı fotoğrafı', hint: 'Tutanağın tamamını çerçeveye al', multi: true, doneText: 'Oku', frame: 'page',
   });
 });
 

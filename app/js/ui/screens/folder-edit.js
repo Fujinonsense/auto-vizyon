@@ -279,8 +279,9 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
       field('TC kimlik no', 'kimlik.tc', { inputmode: 'numeric', caps: 'off' }),
       h('div', { class: 'grid2' }, field('Doğum tarihi', 'kimlik.dogumTarihi', { inputmode: 'numeric' }), field('Seri no', 'kimlik.seriNo', { caps: 'characters' })),
       field('Son geçerlilik', 'kimlik.gecerlilik', { inputmode: 'numeric' })]),
-    fold('tutanak', 'Tutanak A', driverFields('a')),
-    fold('tutanak', 'Tutanak B', driverFields('b')));
+    // No-break spaces, as on the folder screen: the word and its letter stay together.
+    fold('tutanak', 'Tutanak\u00a0A', driverFields('a')),
+    fold('tutanak', 'Tutanak\u00a0B', driverFields('b')));
 
   if (draft.mode === 'new') {
     getSettings().then((s) => {
