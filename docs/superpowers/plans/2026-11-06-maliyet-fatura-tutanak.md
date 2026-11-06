@@ -15,7 +15,7 @@
 - No new dependencies. `npm test` green after every task (149 tests pass before this work).
 - `JOB_COLUMNS` ≡ `JOB_HEADERS` and `FOLDER_COLUMNS` ≡ `FOLDER_HEADERS` (tests/appsscript.test.mjs). New columns only at the END of each list.
 - Every new job field goes into `JOB_FIELDS` in `app/js/sync/merge.js`; every document kind into `DOCS` there.
-- Exact UI copy (Turkish): "Maliyet", "Masraf ekle", "Ne için?", "Ekle", "Kaldır", "Toplam maliyet", "Kâr (KDV hariç)", "Fatura kesildi", "Fatura kesilmedi", "Faturasız", "Kaza tutanağı", "Tutanak: A sürücüsü", "Tutanak: B sürücüsü".
+- Exact UI copy (Turkish): "Maliyet", "Masraf ekle", "Ne için?", "Ekle", "Kaldır", "Toplam maliyet", "Kâr (KDV hariç)", "Fatura kesildi", "Fatura kesilmedi", "Faturasız", "Kaza tutanağı", "Tutanak A", "Tutanak B".
 - Cost categories in this order: `dis-iscilik` "Dış işçilik", `boya` "Boya", `parca` "Yedek parça", `sarf` "Sarf malzeme", `nakliye` "Çekici / nakliye", `diger` "Diğer".
 - Sheet headers, exact: İşler append `Maliyet`, `Maliyet Kalemleri`, `Fatura`. Müşteriler append `Tutanak A Ad Soyad`, `Tutanak A TC`, `Tutanak A Ehliyet`, `Tutanak A Alındığı Yer`, `Tutanak A Adres`, `Tutanak A Telefon`, `Tutanak A Plaka`, then the same seven with `B`.
 - Tap targets ≥ 48px; reuse CSS tokens in `app/css/app.css` (light and dark); icons from `app/js/ui/icons.js` (Tabler) only.
@@ -127,7 +127,7 @@
 - Test: `tests/claude.test.mjs`, `tests/merge-ai.test.mjs`, `tests/share.test.mjs`
 
 **Interfaces:**
-- Produces: `KINDS.tutanak` with label "Kaza tutanağı" and fields `aAdSoyad, aTc, aEhliyet, aAlindigiYer, aAdres, aTel, aPlaka, bAdSoyad, bTc, bEhliyet, bAlindigiYer, bAdres, bTel, bPlaka`; `AI_PATHS.tutanak` mapping each key to `tutanak.<key>`; share sections `tutanakA` "Tutanak: A sürücüsü" and `tutanakB` "Tutanak: B sürücüsü" (rows Plaka, Ad Soyad, T.C. Kimlik No, Ehliyet, Telefon, Adres, Alındığı yer).
+- Produces: `KINDS.tutanak` with label "Kaza tutanağı" and fields `aAdSoyad, aTc, aEhliyet, aAlindigiYer, aAdres, aTel, aPlaka, bAdSoyad, bTc, bEhliyet, bAlindigiYer, bAdres, bTel, bPlaka`; `AI_PATHS.tutanak` mapping each key to `tutanak.<key>`; share sections `tutanakA` "Tutanak A" and `tutanakB` "Tutanak B" (rows Plaka, Ad Soyad, T.C. Kimlik No, Ehliyet, Telefon, Adres, Alındığı yer).
 
 - [ ] **Step 1: Failing tests:** the generic "every schema requires all its fields plus belirsiz" test now covers `tutanak`; `normalize('tutanak', …)` cleans `aTc`/`bTc` like `tc`, `aPlaka`/`bPlaka` like `plaka`, `aAdSoyad`/`bAdSoyad` like `adSoyad`, and keeps unreadable values empty in `belirsiz`; `mergeAi` writes `tutanak.aAdSoyad` into an empty folder and leaves a hand-typed `tutanak.aTel` untouched; `folderSections` returns the B section only when a B field is filled, and its copy text lists the rows in the order above.
 - [ ] **Step 2: Run** — FAIL.

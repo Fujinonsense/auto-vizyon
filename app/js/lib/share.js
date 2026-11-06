@@ -30,8 +30,8 @@ const SECTIONS = [
     ['Ad soyad', 'kimlik.adSoyad'], ['TC kimlik no', 'kimlik.tc'], ['Doğum tarihi', 'kimlik.dogumTarihi'],
     ['Seri no', 'kimlik.seriNo'], ['Son geçerlilik', 'kimlik.gecerlilik'],
   ]],
-  ['tutanakA', 'Tutanak: A sürücüsü', driverRows('a')],
-  ['tutanakB', 'Tutanak: B sürücüsü', driverRows('b')],
+  ['tutanakA', 'Tutanak A', driverRows('a')],
+  ['tutanakB', 'Tutanak B', driverRows('b')],
 ];
 
 export function folderSections(folder) {

@@ -45,7 +45,7 @@ The father runs a dent repair shop and has kept a paper-style "cari hesap" ledge
 - Document kind key `tutanak`, label "Kaza tutanağı", stored on the folder as `tutanak: {}` like the other documents (*builder's call*: folder level, same as Ruhsat/Ehliyet/Kimlik; a new photo replaces the old reading).
 - Fields, for driver A and B: Ad Soyad, T.C. Kimlik No, Sürücü belge no ve sınıfı (one field, e.g. "106408-B"), Alındığı yer, Adres, Telefon, and the vehicle's Plaka (the plate is the only non-driver field, kept so the father can tell which driver is his customer, *builder's call*).
 - The AI prompt tells the model to read only the "Sürücü Bilgileri" boxes and the plates, and to leave unreadable handwriting empty and list it as unclear.
-- The folder shows two compact sections, "Tutanak: A sürücüsü" and "Tutanak: B sürücüsü", each only when it has data, with the same copy rows as the other documents. Empty rows are hidden.
+- The folder shows two compact sections, "Tutanak A" and "Tutanak B", each only when it has data, with the same copy rows as the other documents. Empty rows are hidden.
 - Not copied from an earlier folder with the same plate (an accident belongs to one visit).
 - New icon `app/img/ic-tutanak.webp` in the existing black-and-gold style (made with Higgsfield like the others).
 

@@ -26,7 +26,7 @@ test('folderSections: the accident report sections appear only once they have so
   const onlyA = folderSections({ ...folder, tutanak: { aAdSoyad: 'Ali Veli' } });
   assert.deepEqual(onlyA.map((s) => s.kind), ['musteri', 'arac', 'ruhsat', 'ehliyet', 'kimlik', 'tutanakA']);
   const both = folderSections({ ...folder, tutanak: { aAdSoyad: 'Ali Veli', bTel: '0505 377 64 20' } });
-  assert.deepEqual(both.slice(5).map((s) => s.title), ['Tutanak: A sürücüsü', 'Tutanak: B sürücüsü']);
+  assert.deepEqual(both.slice(5).map((s) => s.title), ['Tutanak A', 'Tutanak B']);
 });
 
 test('accident report B: rows in the agreed order, copy text without the empty ones', () => {

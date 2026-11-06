@@ -271,8 +271,8 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
       field('TC kimlik no', 'kimlik.tc', { inputmode: 'numeric', caps: 'off' }),
       h('div', { class: 'grid2' }, field('Doğum tarihi', 'kimlik.dogumTarihi', { inputmode: 'numeric' }), field('Seri no', 'kimlik.seriNo', { caps: 'characters' })),
       field('Son geçerlilik', 'kimlik.gecerlilik', { inputmode: 'numeric' })]),
-    fold('tutanak', 'Tutanak: A sürücüsü', driverFields('a')),
-    fold('tutanak', 'Tutanak: B sürücüsü', driverFields('b')));
+    fold('tutanak', 'Tutanak A', driverFields('a')),
+    fold('tutanak', 'Tutanak B', driverFields('b')));
 
   if (draft.mode === 'new') {
     getSettings().then((s) => {
