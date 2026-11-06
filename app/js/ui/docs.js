@@ -6,8 +6,11 @@ import { mergeAi } from '../lib/merge-ai.js';
 import { openCamera } from '../media/camera.js';
 import { prepareImage } from '../media/image.js';
 
-// Big documents get the wide guide; licences and ID cards the card-sized one.
-const DOC_FRAME = new Set(['ruhsat', 'tutanak']);
+// The camera guide: the ruhsat gets the wide one, the accident report (an upright A4 page) the page one,
+// licences and ID cards the card-sized one.
+const FRAMES = new Map([['ruhsat', 'doc'], ['tutanak', 'page']]);
+// Both drivers' boxes are only in the photo when the whole report is; the others may need their back too.
+const HINTS = new Map([['tutanak', 'Tutanağın tamamını çerçeveye alın']]);
 
 // draft.folder is edited in place; draft.notify(kind) is called whenever a read starts or ends.
 // No empty tutanak here on purpose: an accident belongs to one visit, so a new visit of a car that came
@@ -44,14 +47,18 @@ export function readInto(draft, kind, blobs) {
 }
 
 // Front side first; "Oku" after one or two shots (some documents need the back too).
-export async function captureDocPhotos(kind) {
-  const res = await openCamera({
+export function docCameraOptions(kind) {
+  return {
     title: `${KINDS[kind].label} fotoğrafı`,
-    hint: 'Gerekirse arka yüzünü de çek',
+    hint: HINTS.get(kind) || 'Gerekirse arka yüzünü de çek',
     multi: true,
     doneText: 'Oku',
-    frame: DOC_FRAME.has(kind) ? 'doc' : 'card',
-  });
+    frame: FRAMES.get(kind) || 'card',
+  };
+}
+
+export async function captureDocPhotos(kind) {
+  const res = await openCamera(docCameraOptions(kind));
   if (!res?.photos.length) return null;
   return Promise.all(res.photos.map(prepareImage));
 }

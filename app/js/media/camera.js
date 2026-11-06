@@ -1,5 +1,6 @@
 // Full-screen in-app camera. Resolves {photos: Blob[], skipped} or null when closed.
-// frame: 'car' (no guide), 'doc' (ruhsat, kaza tutanağı), 'card' (ehliyet / kimlik).
+// frame: 'car' (no guide), 'doc' (ruhsat), 'page' (kaza tutanağı, an upright A4 page), 'card' (ehliyet / kimlik).
+// The guide is only drawn over the preview: a shot is always the camera's whole picture, nothing is cut off.
 import { h, icon } from '../ui/dom.js';
 
 export function openCamera({ title, hint = '', multi = false, skipText = '', doneText = 'Devam', frame = 'car', onOpen } = {}) {
