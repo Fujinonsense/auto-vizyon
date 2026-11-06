@@ -217,7 +217,7 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
       const folder = await saveFolder(data);
       let saved = null;
       const j = job?.read();
-      if (j && (j.amount || j.description || j.parts.length)) saved = await saveJob({ ...j, folderId: folder.id });
+      if (j && (j.amount || j.description || j.parts.length || j.costs.length)) saved = await saveJob({ ...j, folderId: folder.id });
       for (const p of draft.photos) await addPhoto({ folderId: folder.id, kind: p.kind, blob: p.blob, thumb: p.thumb, jobId: saved?.id || null });
       dirty = false;
       toast('Kaydedildi');

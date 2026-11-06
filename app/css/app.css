@@ -299,6 +299,7 @@ button.stat { cursor: pointer; }
 .btn.ghost:active { background: var(--gold-soft); }
 .btn.block { width: 100%; }
 .btn.small { min-height: 44px; padding: 0 16px; border-radius: 999px; font-size: 15px; }
+.btn:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
 .btn-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; }
 .icon-btn {
   width: 48px;
@@ -683,6 +684,19 @@ button.photo-main { display: grid; place-content: center; justify-items: center;
 .calc b { font-size: 17px; }
 .calc .strong { background: var(--gold-soft); }
 .calc .strong b { color: var(--gold-ink); font-size: 19px; }
+.calc.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.calc .due { background: var(--due-soft); }
+.calc .due b { color: var(--due); }
+
+/* Job costs: the items, "Masraf ekle" and its small form */
+.cost-box > .btn.small { justify-self: start; min-height: 48px; }
+.cost-row { display: flex; align-items: center; gap: 8px; min-height: 52px; border-top: 1px solid var(--line); }
+.cost-row:first-child { border-top: 0; }
+.cost-row .grow { overflow-wrap: anywhere; }
+.cost-row .money { white-space: nowrap; }
+.cost-row .icon-btn { flex: none; color: var(--steel); }
+.cost-form { display: grid; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); }
+.chips.wrap.cost-cats .chip { min-height: 48px; font-size: 15px; }
 
 .switch { display: flex; align-items: center; justify-content: space-between; min-height: var(--tap); font-weight: 600; cursor: pointer; }
 .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
