@@ -60,7 +60,7 @@ export async function earningsScreen(params, ctx) {
   async function render() {
     const summaries = await listFolders();
     const months = monthlySummary(summaries.flatMap((s) => s.jobs));
-    const m = months.find((x) => x.month === month) || { month, count: 0, net: 0, vat: 0, total: 0, paid: 0, unpaid: 0 };
+    const m = months.find((x) => x.month === month) || { month, count: 0, net: 0, vat: 0, total: 0, paid: 0, unpaid: 0, cost: 0, profit: 0 };
     const paidShare = m.total ? Math.round((m.paid / m.total) * 100) : 0;
     const debtors = summaries
       .map((s) => ({ s, due: s.jobs.filter((j) => !j.paid).reduce((a, j) => a + j.total, 0) }))
@@ -80,7 +80,9 @@ export async function earningsScreen(params, ctx) {
         metric('İş sayısı', String(m.count)),
         metric('KDV hariç', formatMoney(m.net)),
         metric('KDV', formatMoney(m.vat)),
-        metric('Bekleyen', formatMoney(m.unpaid), m.unpaid ? 'due' : '')),
+        metric('Bekleyen', formatMoney(m.unpaid), m.unpaid ? 'due' : ''),
+        metric('Maliyet', formatMoney(m.cost)),
+        metric('Kâr', formatMoney(m.profit), m.profit < 0 ? 'due' : '')),
       h('div', { class: 'collect' },
         h('div', { class: 'collect-text' }, h('span', {}, 'Tahsil edilen'), h('b', { class: 'money' }, `${formatMoney(m.paid)}`), h('span', {}, `%${paidShare}`)),
         h('div', { class: 'bar', role: 'img', 'aria-label': `Bu ayın yüzde ${paidShare} kadarı tahsil edildi` }, h('span', { style: { width: `${paidShare}%` } }))));

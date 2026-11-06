@@ -34,6 +34,7 @@ const FILTERS = {
   tum: () => true,
   borc: (s) => s.jobs.some((j) => !j.paid),
   sigorta: (s) => s.jobs.some((j) => j.payer === 'sigorta'),
+  fatura: (s) => s.jobs.some((j) => j.invoiced !== true),
   buay: (s, month) =>
     s.jobs.some((j) => (j.date || '').startsWith(month)) || monthKey(new Date(s.folder.createdAt || 0)) === month,
 };

@@ -3,11 +3,11 @@ import { filterSummaries } from '../../lib/search.js';
 import { monthStats } from '../../lib/stats.js';
 import { folderTitle, formatPhone, formatMoney } from '../../lib/format.js';
 import { h, icon } from '../dom.js';
-import { emptyState, thumb, urlScope, statusBadge } from '../parts.js';
+import { emptyState, thumb, urlScope, statusBadge, invoiceBadge } from '../parts.js';
 import { setTopbar, setTopbarSolid, setTab } from '../chrome.js';
 import { go } from '../router.js';
 
-const FILTERS = [['tum', 'Tümü'], ['borc', 'Borçlu'], ['sigorta', 'Sigorta'], ['buay', 'Bu ay']];
+const FILTERS = [['tum', 'Tümü'], ['borc', 'Borçlu'], ['sigorta', 'Sigorta'], ['buay', 'Bu ay'], ['fatura', 'Faturasız']];
 const state = { query: '', filter: 'tum' }; // kept while the app is open
 let heroPlayed = false; // the light sweep runs once per app launch
 
@@ -19,7 +19,7 @@ function row({ folder, jobs, cover }, scope) {
     h('div', { class: 'grow' },
       h('div', { class: 'ftitle' }, folderTitle(folder)),
       folder.phone && h('div', { class: 'fphone' }, icon('phone', 15), formatPhone(folder.phone)),
-      last && h('div', { class: 'fmeta' }, h('span', { class: 'money' }, formatMoney(last.total)), statusBadge(last))),
+      last && h('div', { class: 'fmeta' }, h('span', { class: 'money' }, formatMoney(last.total)), statusBadge(last), invoiceBadge(last))),
     h('span', { class: 'chev', 'aria-hidden': 'true' }, icon('chevron-right', 20)));
 }
 

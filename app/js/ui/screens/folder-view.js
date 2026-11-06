@@ -2,8 +2,9 @@
 import { getFolder, jobsForFolder, listPhotos, onChange, deleteFolder, addPhoto, getSettings, saveFolder } from '../../data/repo.js';
 import { folderSections, sectionCopyText, folderCopyText, readyMessage, waLink, telLink } from '../../lib/share.js';
 import { formatMoney, formatDate, formatPhone } from '../../lib/format.js';
+import { costTotal } from '../../lib/costs.js';
 import { h, icon, toast, confirmSheet, copyRow, copyText, sheet } from '../dom.js';
-import { plateChip, urlScope, statusBadge } from '../parts.js';
+import { plateChip, urlScope, statusBadge, invoiceBadge } from '../parts.js';
 import { setTopbar, setTab } from '../chrome.js';
 import { go } from '../router.js';
 import { openJobSheet } from '../job-edit.js';
@@ -101,11 +102,15 @@ export async function folderView({ id }, ctx) {
       h('div', { class: 'section-head' }, h('h3', {}, 'İşler'),
         h('button', { class: 'btn small', type: 'button', onclick: () => openJobSheet(id) }, icon('plus', 20), 'Yeni iş')),
       jobs.length
-        ? jobs.map((j) => h('button', { class: 'jobrow', type: 'button', onclick: () => openJobSheet(id, j) },
-          h('div', { class: 'grow' },
-            h('b', {}, j.description || j.parts.join(', ') || 'Onarım'),
-            h('span', {}, [formatDate(j.date), j.payer === 'sigorta' && (j.insurer || 'Sigorta'), j.claimNo].filter(Boolean).join(', '))),
-          h('div', { class: 'jobamt' }, h('b', { class: 'money' }, formatMoney(j.total)), statusBadge(j))))
+        ? jobs.map((j) => {
+          const cost = costTotal(j.costs);
+          return h('button', { class: 'jobrow', type: 'button', onclick: () => openJobSheet(id, j) },
+            h('div', { class: 'grow' },
+              h('b', {}, j.description || j.parts.join(', ') || 'Onarım'),
+              h('span', {}, [formatDate(j.date), j.payer === 'sigorta' && (j.insurer || 'Sigorta'), j.claimNo].filter(Boolean).join(', ')),
+              cost > 0 && h('span', { class: 'jobcost' }, `Maliyet ${formatMoney(cost)}`)),
+            h('div', { class: 'jobamt' }, h('b', { class: 'money' }, formatMoney(j.total)), statusBadge(j), invoiceBadge(j)));
+        })
         : h('p', { class: 'muted small' }, 'Henüz iş yok. Fiyat verince "Yeni iş" ile ekle.'),
       unpaid > 0 && h('p', { class: 'due-line' }, 'Ödenmemiş: ', h('b', { class: 'money' }, formatMoney(unpaid))));
 

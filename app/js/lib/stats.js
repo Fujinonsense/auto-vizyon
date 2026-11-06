@@ -1,4 +1,5 @@
 import { round2 } from './format.js';
+import { costTotal, profit } from './costs.js';
 
 export function monthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -7,21 +8,27 @@ export function monthKey(date) {
 const sum = (values) => round2(values.reduce((a, b) => a + (Number(b) || 0), 0));
 
 // Kazanç screen and the Excel "Özet" sheet: one row per month, newest first.
+// cost is what the jobs cost the shop, profit the amounts without KDV minus those costs.
 export function monthlySummary(jobs) {
   const months = new Map();
   for (const j of jobs) {
     const month = (j.date || '').slice(0, 7);
     if (!month) continue;
-    const r = months.get(month) || { month, count: 0, net: [], vat: [], total: [], paid: [], unpaid: [] };
+    const r = months.get(month) || { month, count: 0, net: [], vat: [], total: [], paid: [], unpaid: [], cost: [], profit: [] };
     r.count += 1;
     r.net.push(j.net);
     r.vat.push(j.vat);
     r.total.push(j.total);
     (j.paid ? r.paid : r.unpaid).push(j.total);
+    r.cost.push(costTotal(j.costs));
+    r.profit.push(profit(j));
     months.set(month, r);
   }
   return [...months.values()]
-    .map((r) => ({ month: r.month, count: r.count, net: sum(r.net), vat: sum(r.vat), total: sum(r.total), paid: sum(r.paid), unpaid: sum(r.unpaid) }))
+    .map((r) => ({
+      month: r.month, count: r.count, net: sum(r.net), vat: sum(r.vat), total: sum(r.total), paid: sum(r.paid), unpaid: sum(r.unpaid),
+      cost: sum(r.cost), profit: sum(r.profit),
+    }))
     .sort((a, b) => b.month.localeCompare(a.month));
 }
 

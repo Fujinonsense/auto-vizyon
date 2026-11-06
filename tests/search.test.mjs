@@ -48,6 +48,16 @@ test('unrelated query does not match, empty query matches all', () => {
   assert.ok(matchesQuery(ugur, '  '));
 });
 
+test('filter faturasız: folders with any job not invoiced; jobs saved before the flag count as not invoiced', () => {
+  const now = new Date(2026, 9, 20);
+  const done = { folder: { id: 'c', name: 'C' }, jobs: [{ id: 'j3', date: '2026-10-01', invoiced: true }, { id: 'j4', date: '2026-09-01', invoiced: true }] };
+  const half = { folder: { id: 'd', name: 'Deniz Er' }, jobs: [{ id: 'j5', date: '2026-10-01', invoiced: true }, { id: 'j6', date: '2026-10-02', invoiced: false }] };
+  const none = { folder: { id: 'e', name: 'E' }, jobs: [] };
+  assert.equal('invoiced' in ugur.jobs[0], false);
+  assert.deepEqual(ids(filterSummaries([ugur, done, half, none], { filter: 'fatura' }, now)), ['a', 'd']);
+  assert.deepEqual(ids(filterSummaries([ugur, done, half, none], { filter: 'fatura', query: 'deniz' }, now)), ['d']);
+});
+
 test('filters: borçlu, sigorta, bu ay, with query', () => {
   const now = new Date(2026, 9, 20);
   assert.deepEqual(ids(filterSummaries([ugur, ayse], { filter: 'borc' }, now)), ['b']);

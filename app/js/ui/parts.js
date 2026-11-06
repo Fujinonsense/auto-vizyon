@@ -13,6 +13,13 @@ export function statusBadge(job) {
   return h('span', { class: 'badge due' }, 'Borç');
 }
 
+// Jobs saved before the invoice flag existed read as not invoiced.
+export function invoiceBadge(job) {
+  return job.invoiced === true
+    ? h('span', { class: 'badge inv-ok' }, 'Fatura kesildi')
+    : h('span', { class: 'badge inv' }, 'Fatura kesilmedi');
+}
+
 // Object URLs for photo blobs, revoked together when the screen is left.
 export function urlScope() {
   const urls = [];

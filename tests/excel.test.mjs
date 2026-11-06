@@ -156,7 +156,7 @@ test('monthlySummary: newest month first, paid and unpaid split', () => {
     { date: '2026-10-18', net: 2000, vat: 400, total: 2400, paid: false },
     { date: '2026-09-30', net: 3000, vat: 600, total: 3600, paid: false },
   ]);
-  assert.deepEqual(rows[0], { month: '2026-10', count: 2, net: 7000, vat: 1400, total: 8400, paid: 6000, unpaid: 2400 });
+  assert.deepEqual(rows[0], { month: '2026-10', count: 2, net: 7000, vat: 1400, total: 8400, paid: 6000, unpaid: 2400, cost: 0, profit: 7000 });
   assert.equal(rows[1].month, '2026-09');
 });
 
