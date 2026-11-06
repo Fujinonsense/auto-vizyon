@@ -1,34 +1,18 @@
 import 'fake-indexeddb/auto';
 import { test, beforeEach, afterEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { newDraft, folderToSave, readInto } from '../app/js/ui/docs.js';
+import { newDraft, folderToSave } from '../app/js/ui/docs.js';
 import { mergeAi } from '../app/js/lib/merge-ai.js';
 import * as repo from '../app/js/data/repo.js';
 import { clearAll } from '../app/js/data/db.js';
-import { settle } from './helpers/fake-dom.mjs';
-import '../app/js/ai/mock.js'; // loaded before a read asks for it
+import { useSampleAi, readSample as read } from './helpers/sample-ai.mjs';
 
-// The sample answers instead of Claude, as in the app without an API key.
-globalThis.localStorage = { getItem: (key) => (key === 'avMockAI' ? '1' : null) };
-after(() => { delete globalThis.localStorage; });
-
+after(useSampleAi());
 beforeEach(async () => {
   await clearAll();
   mock.timers.enable({ apis: ['setTimeout'] });
 });
 afterEach(() => mock.timers.reset());
-
-// A photo read by the sample answers (they come after 900 ms). The accident report's sample: driver B is
-// Ayşe Kara, 35 KR 7781, her address could not be read.
-async function read(draft, kind) {
-  const done = readInto(draft, kind, [new Blob(['x'], { type: 'image/jpeg' })]);
-  for (let i = 0; i < 20 && draft.reads[kind].state === 'reading'; i++) {
-    await settle();
-    mock.timers.tick(1000);
-  }
-  await done;
-  assert.equal(draft.reads[kind].state, 'done', draft.reads[kind].message);
-}
 
 const car = { plaka: '34 NMA 887', renk: 'Siyah', marka: 'Audi', model: 'A7' };
 const report1 = {

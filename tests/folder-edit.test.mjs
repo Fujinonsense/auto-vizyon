@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { test, after, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { installDom, type, byText, settle } from './helpers/fake-dom.mjs';
+import { useSampleAi, readSample as read } from './helpers/sample-ai.mjs';
 
 // The screens build their parts when they load, so the page has to be there first.
 const dom = installDom();
@@ -9,18 +10,16 @@ const repo = await import('../app/js/data/repo.js');
 const { clearAll } = await import('../app/js/data/db.js');
 const { route } = await import('../app/js/ui/router.js');
 const { h } = await import('../app/js/ui/dom.js');
-const { newDraft, readInto, folderToSave } = await import('../app/js/ui/docs.js');
+const { newDraft, folderToSave } = await import('../app/js/ui/docs.js');
 const { mergeAi } = await import('../app/js/lib/merge-ai.js');
 const { editScreen, folderForm } = await import('../app/js/ui/screens/folder-edit.js');
-await import('../app/js/ai/mock.js'); // loaded before a read asks for it
 
 // Where a saved form goes next.
 route('/klasor/:id', () => h('div', { class: 'folder-screen' }));
-// The sample answers instead of Claude, as in the app without an API key.
-globalThis.localStorage = { getItem: (key) => (key === 'avMockAI' ? '1' : null) };
+const sampleAiOff = useSampleAi();
 
 after(() => {
-  delete globalThis.localStorage;
+  sampleAiOff();
   dom.uninstall();
 });
 beforeEach(async () => {
@@ -44,17 +43,6 @@ async function openForm(draft) {
   dom.document.getElementById('screen').replaceChildren(form);
   await settle();
   return form;
-}
-
-// A photo read by the sample answers (they come after 900 ms).
-async function read(draft, kind) {
-  const done = readInto(draft, kind, [new Blob(['x'], { type: 'image/jpeg' })]);
-  for (let i = 0; i < 20 && draft.reads[kind].state === 'reading'; i++) {
-    await settle();
-    mock.timers.tick(1000);
-  }
-  await done;
-  assert.equal(draft.reads[kind].state, 'done', draft.reads[kind].message);
 }
 
 test('folder form: the accident report phones are shown, cleaned and saved like the customer phone', async () => {
