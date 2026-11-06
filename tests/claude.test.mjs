@@ -57,7 +57,7 @@ test('parseResponse (tutanak): TC, plate and name cleaned like the other documen
   assert.equal(r.fields.aPlaka, '34 NMA 887');
   assert.equal(r.fields.aAdSoyad, 'Uğurcan Kaya');
   assert.equal(r.fields.bAdSoyad, 'Işıl İnce');
-  assert.equal(r.fields.aTel, '0532 418 27 90');
+  assert.equal(r.fields.aTel, '05324182790', 'kept like the customer phone');
   assert.equal(r.fields.aEhliyet, '482190-B');
   assert.equal(r.fields.bAdres, '');
   assert.equal(r.fields.bTel, '');
@@ -66,7 +66,23 @@ test('parseResponse (tutanak): TC, plate and name cleaned like the other documen
   assert.ok(!r.unclear.includes('aTc') && !r.unclear.includes('aPlaka'));
   assert.ok(r.unclear.includes('bAdres') && r.unclear.includes('bTel'));
   assert.ok(!r.unclear.includes('bilinmeyen'));
+  assert.ok(!r.unclear.includes('aTel'));
   assert.deepEqual(Object.keys(r.fields), KINDS.tutanak.fields.map((f) => f.key));
+});
+
+test('parseResponse (tutanak): the drivers\' phones in digits with the leading 0, a number that cannot be one is flagged', () => {
+  const blank = Object.fromEntries(KINDS.tutanak.fields.map((f) => [f.key, '']));
+  for (const said of ['05053776420', '0505 377 64 20', '+90 505 377 64 20', '5053776420', '(0505) 377-6420']) {
+    const r = parseResponse('tutanak', reply({ ...blank, aTel: said, bTel: said, belirsiz: [] }));
+    assert.equal(r.fields.aTel, '05053776420', said);
+    assert.equal(r.fields.bTel, '05053776420', said);
+    assert.deepEqual(r.unclear, [], said);
+  }
+  const odd = parseResponse('tutanak', reply({ ...blank, aTel: '0505 377 64 2', bTel: '0505 377 64 200', belirsiz: [] }));
+  assert.ok(odd.unclear.includes('aTel') && odd.unclear.includes('bTel'), 'a digit missing or one too many: check it');
+  const none = parseResponse('tutanak', reply({ ...blank, aTel: 'okunmuyor', belirsiz: ['aTel'] }));
+  assert.equal(none.fields.aTel, '', 'no digits, no phone');
+  assert.ok(none.unclear.includes('aTel'));
 });
 
 test('the sample answers (no API key) cover every document and read cleanly', async () => {

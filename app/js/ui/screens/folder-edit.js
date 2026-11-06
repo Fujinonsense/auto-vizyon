@@ -3,12 +3,12 @@ import { getFolder, saveFolder, saveJob, addPhoto, getSettings, findFolderByPlat
 import { KINDS } from '../../ai/schemas.js';
 import { markManual, getPath, setPath } from '../../lib/merge-ai.js';
 import { normalizePlate, normalizeVin } from '../../lib/validate.js';
-import { normalizePhone, formatPhone, folderTitle } from '../../lib/format.js';
+import { formatPhone, folderTitle } from '../../lib/format.js';
 import { h, icon, toast, confirmSheet, spinner } from '../dom.js';
 import { urlScope } from '../parts.js';
 import { setTopbar } from '../chrome.js';
 import { go, back } from '../router.js';
-import { newDraft, readInto, captureDocPhotos } from '../docs.js';
+import { newDraft, readInto, captureDocPhotos, folderToSave } from '../docs.js';
 import { jobFields } from '../job-fields.js';
 import { openCamera } from '../../media/camera.js';
 import { prepareImage } from '../../media/image.js';
@@ -16,10 +16,13 @@ import { prepareImage } from '../../media/image.js';
 const DOCS = ['ruhsat', 'ehliyet', 'kimlik', 'tutanak'];
 // The accident report is left out: an accident belongs to one visit.
 const COPY_FROM_EXISTING = ['name', 'phone', 'brand', 'model', 'modelFull', 'color', 'modelYear', 'vin', 'engineNo', 'ruhsat', 'ehliyet', 'kimlik'];
+// Typed and shown like the customer's phone.
+const DRIVER_PHONES = ['tutanak.aTel', 'tutanak.bTel'];
 
 export function folderForm(draft, ctx, { autoDoc } = {}) {
   const f = draft.folder;
   if (f.phone) f.phone = formatPhone(f.phone);
+  for (const path of DRIVER_PHONES) if (getPath(f, path)) setPath(f, path, formatPhone(getPath(f, path)));
   const scope = urlScope();
   const fields = new Map();
   let dirty = draft.mode === 'new';
@@ -90,7 +93,7 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
     field('Ad Soyad', `tutanak.${d}AdSoyad`),
     field('T.C. Kimlik No', `tutanak.${d}Tc`, { inputmode: 'numeric', caps: 'off' }),
     field('Ehliyet', `tutanak.${d}Ehliyet`, { placeholder: '106408-B', caps: 'characters' }),
-    field('Telefon', `tutanak.${d}Tel`, { type: 'tel', inputmode: 'tel', caps: 'off' }),
+    field('Telefon', `tutanak.${d}Tel`, { type: 'tel', inputmode: 'tel', placeholder: '05xx xxx xx xx', caps: 'off', clean: formatPhone }),
     field('Adres', `tutanak.${d}Adres`),
     field('Alındığı yer', `tutanak.${d}AlindigiYer`)];
 
@@ -192,6 +195,7 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
   function onRead(kind) {
     const st = draft.reads[kind];
     if (st?.state === 'done') {
+      for (const path of DRIVER_PHONES) if (st.changed.includes(path)) setPath(f, path, formatPhone(getPath(f, path)));
       st.changed.forEach((p) => paint(p, true));
       [...fields.keys()].forEach((p) => paint(p));
       form.querySelectorAll('details[data-kind]').forEach((d) => { if (hasData(d.dataset.kind)) d.open = true; });
@@ -221,10 +225,7 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
     }
     saveBtn.replaceChildren(spinner(), 'Kaydediliyor');
     try {
-      const data = { ...f, name: (f.name || '').trim(), phone: normalizePhone(f.phone), plate: f.plate ? normalizePlate(f.plate) : '' };
-      if (draft.targetId) data.id = draft.targetId;
-      else delete data.id;
-      const folder = await saveFolder(data);
+      const folder = await saveFolder(folderToSave(draft));
       let saved = null;
       const j = job?.read();
       if (j && (j.amount || j.description || j.parts.length || j.costs.length)) saved = await saveJob({ ...j, folderId: folder.id });

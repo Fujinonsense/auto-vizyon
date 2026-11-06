@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { headerKey, JOB_COLUMNS, FOLDER_COLUMNS, jobToRow, folderToRow, rowToJob, rowToFolder, toIsoDate } from '../app/js/excel/columns.js';
 import { buildWorkbook, readWorkbook, importRecords } from '../app/js/excel/xlsx.js';
 import { monthlySummary } from '../app/js/lib/stats.js';
+import { normalizePhone } from '../app/js/lib/format.js';
+import { mergeRemote } from '../app/js/sync/merge.js';
 import * as repo from '../app/js/data/repo.js';
 import { clearAll } from '../app/js/data/db.js';
 import * as XLSX from '../app/vendor/xlsx.mjs';
@@ -50,12 +52,18 @@ test('no two headers of a sheet read as the same column', () => {
 });
 
 const costs = [{ cat: 'dis-iscilik', label: '', amount: 20000 }, { cat: 'diger', label: 'Cam filmi', amount: 10000 }];
+// As the phone keeps it: the two phones in digits, like the customer's phone.
 const tutanak = {
   aAdSoyad: 'Uğurcan Kaya', aTc: '10000000146', aEhliyet: '482190-B', aAlindigiYer: 'Kadıköy', aAdres: 'Moda Cad. No 12 Kadıköy İstanbul',
-  aTel: '0532 418 27 90', aPlaka: '34 NMA 887',
+  aTel: '05324182790', aPlaka: '34 NMA 887',
   bAdSoyad: 'Ayşe Kara', bTc: '19090909018', bEhliyet: '106408-B', bAlindigiYer: 'Konak', bAdres: 'Alsancak Mah. 1453 Sok. İzmir',
-  bTel: '0505 377 64 20', bPlaka: '35 KR 7781',
+  bTel: '05053776420', bPlaka: '35 KR 7781',
 };
+
+// What Google Sheets does to text written into a cell left as Automatic (the live sheet's hand-typed
+// Tutanak columns): digits only become a number, so a leading 0 is lost.
+const automatic = (v) => (typeof v === 'string' && /^\d+$/.test(v.trim()) ? Number(v) : v);
+const intoLiveSheet = (row) => Object.fromEntries(Object.entries(row).map(([h, v]) => [h, h.startsWith('Tutanak') ? automatic(v) : v]));
 
 test('job row: costs and the invoice flag go out as Maliyet, Maliyet Kalemleri, Fatura and come back', () => {
   const row = jobToRow({ ...job, costs, invoiced: true }, folder);
@@ -100,12 +108,35 @@ test('rowToJob: Fatura typed by hand in any case', () => {
 });
 
 test('folder row round trip keeps all 14 accident report fields', () => {
-  const back = rowToFolder(folderToRow({ ...folder, tutanak }));
-  assert.deepEqual(back.tutanak, tutanak);
-  assert.equal(folderToRow({ ...folder, tutanak })['Tutanak B Telefon'], '0505 377 64 20');
+  const row = folderToRow({ ...folder, tutanak });
+  assert.deepEqual(rowToFolder(row).tutanak, tutanak);
+  assert.deepEqual(rowToFolder(intoLiveSheet(row)).tutanak, tutanak, 'also through Automatic-format columns');
+  assert.equal(row['Tutanak A Telefon'], '0532 418 27 90', 'written spaced, like the customer phone');
+  assert.equal(row['Tutanak B Telefon'], '0505 377 64 20');
   const none = folderToRow(folder);
   assert.equal(none['Tutanak A Ad Soyad'], '', 'a folder saved before the accident report existed writes empty cells');
+  assert.equal(none['Tutanak A Telefon'], '');
   assert.equal('tutanak' in rowToFolder(none), false);
+});
+
+test('accident report phones keep their leading 0 through the live sheet, and the pull after the push changes nothing', () => {
+  for (const typed of ['05053776420', '0505 377 64 20', '+90 505 377 64 20', '5053776420']) {
+    const stored = normalizePhone(typed); // what the folder form saves
+    assert.equal(stored, '05053776420', typed);
+    const local = { ...folder, tutanak: { aAdSoyad: 'Ali Veli', aTel: stored, bTel: stored } };
+    const row = folderToRow(local);
+    assert.equal(row['Tutanak A Telefon'], '0505 377 64 20', typed);
+    assert.equal(row['Tutanak B Telefon'], '0505 377 64 20', typed);
+    const back = rowToFolder(intoLiveSheet(row));
+    assert.deepEqual(back.tutanak, local.tutanak, typed);
+    const pulled = mergeRemote({ folders: new Map([[local.id, local]]), jobs: new Map() }, { folders: [{ ...back, remoteStamp: 9 }], jobs: [] }, new Set());
+    assert.deepEqual(pulled.folders, [], `${typed}: no false remote change`);
+  }
+});
+
+test('an accident report phone already stripped in the sheet reads back with its leading 0', () => {
+  const back = rowToFolder({ 'Klasör No': 'f1', 'Tutanak A Telefon': 5053776420, 'Tutanak B Telefon': '5053776420' });
+  assert.deepEqual(back.tutanak, { aTel: '05053776420', bTel: '05053776420' });
 });
 
 test('job row round trip keeps money, KDV, payment and links', () => {

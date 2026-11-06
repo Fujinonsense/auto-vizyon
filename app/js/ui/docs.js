@@ -3,6 +3,8 @@ import { getSettings } from '../data/repo.js';
 import { readDocument } from '../ai/claude.js';
 import { KINDS } from '../ai/schemas.js';
 import { mergeAi } from '../lib/merge-ai.js';
+import { normalizePhone } from '../lib/format.js';
+import { normalizePlate } from '../lib/validate.js';
 import { openCamera } from '../media/camera.js';
 import { prepareImage } from '../media/image.js';
 
@@ -44,6 +46,21 @@ export function readInto(draft, kind, blobs) {
   })();
   draft.pending.add(p);
   return p;
+}
+
+// What the form saves: name, phone and plate cleaned, the accident report's two phones like the
+// customer's (digits with the leading 0), into the draft's own folder or a new one. The draft on
+// screen stays as typed.
+export function folderToSave(draft) {
+  const f = draft.folder;
+  const data = { ...f, name: (f.name || '').trim(), phone: normalizePhone(f.phone), plate: f.plate ? normalizePlate(f.plate) : '' };
+  if (f.tutanak) {
+    data.tutanak = { ...f.tutanak };
+    for (const key of ['aTel', 'bTel']) if (data.tutanak[key]) data.tutanak[key] = normalizePhone(data.tutanak[key]);
+  }
+  if (draft.targetId) data.id = draft.targetId;
+  else delete data.id;
+  return data;
 }
 
 // Front side first; "Oku" after one or two shots (some documents need the back too).

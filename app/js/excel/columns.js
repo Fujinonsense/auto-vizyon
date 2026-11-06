@@ -51,13 +51,14 @@ export const FOLDER_COLUMNS = [
   ['Kimlik Ad Soyad', 'kimlik.adSoyad'], ['Kimlik TC', 'kimlik.tc'], ['Kimlik Doğum Tarihi', 'kimlik.dogumTarihi'],
   ['Kimlik Seri No', 'kimlik.seriNo'], ['Kimlik Geçerlilik', 'kimlik.gecerlilik'],
   ['Drive Klasörü', 'driveUrl', 'link', 30], ['Not', 'note'], ['Güncellendi', 'updatedAt', 'stamp', 17], ['Klasör No', 'id', 'id', 38],
-  // Kaza tutanağı: the two drivers as read (or typed), kept as plain text.
+  // Kaza tutanağı: the two drivers as read (or typed), kept as plain text. The phones go like the
+  // customer's: spaced in the sheet (so a column left as Automatic keeps the leading 0), digits on the phone.
   ['Tutanak A Ad Soyad', 'tutanak.aAdSoyad', 'text', 22], ['Tutanak A TC', 'tutanak.aTc', 'text', 14],
   ['Tutanak A Ehliyet', 'tutanak.aEhliyet', 'text', 14], ['Tutanak A Alındığı Yer', 'tutanak.aAlindigiYer'],
-  ['Tutanak A Adres', 'tutanak.aAdres', 'text', 30], ['Tutanak A Telefon', 'tutanak.aTel'], ['Tutanak A Plaka', 'tutanak.aPlaka', 'text', 12],
+  ['Tutanak A Adres', 'tutanak.aAdres', 'text', 30], ['Tutanak A Telefon', 'tutanak.aTel', 'phone'], ['Tutanak A Plaka', 'tutanak.aPlaka', 'text', 12],
   ['Tutanak B Ad Soyad', 'tutanak.bAdSoyad', 'text', 22], ['Tutanak B TC', 'tutanak.bTc', 'text', 14],
   ['Tutanak B Ehliyet', 'tutanak.bEhliyet', 'text', 14], ['Tutanak B Alındığı Yer', 'tutanak.bAlindigiYer'],
-  ['Tutanak B Adres', 'tutanak.bAdres', 'text', 30], ['Tutanak B Telefon', 'tutanak.bTel'], ['Tutanak B Plaka', 'tutanak.bPlaka', 'text', 12],
+  ['Tutanak B Adres', 'tutanak.bAdres', 'text', 30], ['Tutanak B Telefon', 'tutanak.bTel', 'phone'], ['Tutanak B Plaka', 'tutanak.bPlaka', 'text', 12],
 ].map(([header, key, type = 'text', width = 16]) => col(header, key, type, width, 'folder'));
 
 const pad = (n) => String(n).padStart(2, '0');

@@ -48,6 +48,14 @@ test('accident report B: rows in the agreed order, copy text without the empty o
   assert.ok(folderCopyText({ ...folder, tutanak }).endsWith('\n\nPlaka: 35 KR 7781\nAd Soyad: Ayşe Kara\nT.C. Kimlik No: 19090909018\nEhliyet: 106408-B\nTelefon: 0505 377 64 20\nAdres: Alsancak Mah. 1453 Sok. İzmir\nAlındığı yer: Konak'));
 });
 
+test('accident report phones are shown and copied like the customer phone', () => {
+  const s = folderSections({ ...folder, tutanak: { aTel: '05053776420', bTel: '5053776420' } });
+  const tel = (kind) => s.find((x) => x.kind === kind).rows.find((r) => r.label === 'Telefon');
+  assert.deepEqual(tel('tutanakA'), { label: 'Telefon', value: '0505 377 64 20', path: 'tutanak.aTel' });
+  assert.equal(tel('tutanakB').value, '0505 377 64 20', 'a number the sheet stripped of its 0 too');
+  assert.equal(sectionCopyText(s.find((x) => x.kind === 'tutanakA').rows), 'Telefon: 0505 377 64 20');
+});
+
 test('sectionCopyText: "Label: value" lines, empty values left out', () => {
   assert.equal(
     sectionCopyText([{ label: 'Plaka', value: '34 NMA 887' }, { label: 'Şase no', value: '' }, { label: 'Model yılı', value: '2019' }]),

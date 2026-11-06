@@ -11,6 +11,8 @@ const driverRows = (d) => [
 
 // Shown only once something is in them (the others are always listed, empty or not).
 const ONLY_WHEN_FILLED = new Set(['tutanakA', 'tutanakB']);
+// Kept as digits, shown spaced: the customer's and the two drivers' phones.
+const PHONES = new Set(['phone', 'tutanak.aTel', 'tutanak.bTel']);
 
 const SECTIONS = [
   ['musteri', 'Müşteri', [['Ad soyad', 'name'], ['Telefon', 'phone']]],
@@ -40,7 +42,7 @@ export function folderSections(folder) {
     title,
     rows: rows.map(([label, path]) => {
       const raw = String(getPath(folder, path) ?? '').trim();
-      return { label, value: path === 'phone' ? formatPhone(raw) : raw, path };
+      return { label, value: PHONES.has(path) ? formatPhone(raw) : raw, path };
     }),
   })).filter((s) => !ONLY_WHEN_FILLED.has(s.kind) || s.rows.some((r) => r.value));
 }
