@@ -27,17 +27,21 @@ var ROOT_FOLDER = 'Auto Vizyon';
 var EXCEL_FILE = 'Auto Vizyon Excel.xlsx';
 var EXCEL_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-// Must stay identical to app/js/excel/columns.js (a test checks it).
+// Must stay identical to app/js/excel/columns.js (a test checks it). New columns go at the end only,
+// so the rows already in the sheet never shift.
 var JOB_HEADERS = ['Tarih', 'Müşteri', 'Telefon', 'Plaka', 'Araç', 'Model Yılı', 'Şase No', 'Yapılan İş', 'Parçalar',
   'Tutar (KDV Hariç)', 'KDV Oranı', 'KDV', 'Toplam (KDV Dahil)', 'Ödeme', 'Ödeyen', 'Sigorta Şirketi', 'Dosya No', 'Not',
-  'Güncellendi', 'Kayıt No', 'Klasör No'];
+  'Güncellendi', 'Kayıt No', 'Klasör No', 'Maliyet', 'Maliyet Kalemleri', 'Fatura'];
 var FOLDER_HEADERS = ['Ad Soyad', 'Telefon', 'Plaka', 'Marka', 'Model', 'Renk', 'Model Yılı', 'Şase No', 'Motor No',
   'Ticari Adı', 'Ruhsat Sahibi', 'Ruhsat TC/VKN', 'Belge Seri No', 'Tescil Tarihi', 'Ruhsat Tipi', 'Ehliyet Ad Soyad',
   'Ehliyet TC', 'Ehliyet No', 'Ehliyet Sınıfı', 'Ehliyet Veriliş', 'Ehliyet Doğum Tarihi', 'Kimlik Ad Soyad', 'Kimlik TC',
-  'Kimlik Doğum Tarihi', 'Kimlik Seri No', 'Kimlik Geçerlilik', 'Drive Klasörü', 'Not', 'Güncellendi', 'Klasör No'];
+  'Kimlik Doğum Tarihi', 'Kimlik Seri No', 'Kimlik Geçerlilik', 'Drive Klasörü', 'Not', 'Güncellendi', 'Klasör No',
+  'Tutanak A Ad Soyad', 'Tutanak A TC', 'Tutanak A Ehliyet', 'Tutanak A Alındığı Yer', 'Tutanak A Adres', 'Tutanak A Telefon',
+  'Tutanak A Plaka', 'Tutanak B Ad Soyad', 'Tutanak B TC', 'Tutanak B Ehliyet', 'Tutanak B Alındığı Yer', 'Tutanak B Adres',
+  'Tutanak B Telefon', 'Tutanak B Plaka'];
 var SUMMARY_HEADERS = ['Ay', 'İş Sayısı', 'KDV Hariç', 'KDV', 'Toplam', 'Tahsil Edilen', 'Bekleyen'];
-var MONEY = ['Tutar (KDV Hariç)', 'KDV', 'Toplam (KDV Dahil)'];
-var KIND = { arac: 'Araç', once: 'Hasar öncesi', sonra: 'Hasar sonrası', ruhsat: 'Ruhsat', ehliyet: 'Ehliyet', kimlik: 'Kimlik' };
+var MONEY = ['Tutar (KDV Hariç)', 'KDV', 'Toplam (KDV Dahil)', 'Maliyet'];
+var KIND = { arac: 'Araç', once: 'Hasar öncesi', sonra: 'Hasar sonrası', ruhsat: 'Ruhsat', ehliyet: 'Ehliyet', kimlik: 'Kimlik', tutanak: 'Tutanak' };
 
 function kurulum() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();

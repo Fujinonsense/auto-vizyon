@@ -1,10 +1,13 @@
 // One column list for the Excel file and the Google sheet. Reading back is forgiving:
-// headers match without case or Turkish letters, empty cells never wipe data.
+// headers match without case or Turkish letters, empty cells never wipe data (except the
+// cost items and the invoice flag, where an empty cell means "none" and "not invoiced").
+// New columns only ever go at the end, so rows already in the sheet never shift.
 import { foldTr } from '../lib/search.js';
 import { formatPhone, normalizePhone, parseMoney } from '../lib/format.js';
 import { normalizePlate } from '../lib/validate.js';
 import { getPath, setPath } from '../lib/merge-ai.js';
 import { computeVat } from '../lib/vat.js';
+import { costTotal, costsToText, costsFromText } from '../lib/costs.js';
 
 export const headerKey = (h) => foldTr(h).replace(/[^a-z0-9]/g, '');
 
@@ -32,6 +35,10 @@ export const JOB_COLUMNS = [
   col('Güncellendi', 'updatedAt', 'stamp', 17),
   col('Kayıt No', 'id', 'id', 38),
   col('Klasör No', 'folderId', 'id', 38),
+  // Maliyet is written for people to read; the items are what comes back.
+  col('Maliyet', 'costs', 'costSum', 14),
+  col('Maliyet Kalemleri', 'costs', 'costs', 36),
+  col('Fatura', 'invoiced', 'invoice', 11),
 ];
 
 export const FOLDER_COLUMNS = [
@@ -44,6 +51,13 @@ export const FOLDER_COLUMNS = [
   ['Kimlik Ad Soyad', 'kimlik.adSoyad'], ['Kimlik TC', 'kimlik.tc'], ['Kimlik Doğum Tarihi', 'kimlik.dogumTarihi'],
   ['Kimlik Seri No', 'kimlik.seriNo'], ['Kimlik Geçerlilik', 'kimlik.gecerlilik'],
   ['Drive Klasörü', 'driveUrl', 'link', 30], ['Not', 'note'], ['Güncellendi', 'updatedAt', 'stamp', 17], ['Klasör No', 'id', 'id', 38],
+  // Kaza tutanağı: the two drivers as read (or typed), kept as plain text.
+  ['Tutanak A Ad Soyad', 'tutanak.aAdSoyad', 'text', 22], ['Tutanak A TC', 'tutanak.aTc', 'text', 14],
+  ['Tutanak A Ehliyet', 'tutanak.aEhliyet', 'text', 14], ['Tutanak A Alındığı Yer', 'tutanak.aAlindigiYer'],
+  ['Tutanak A Adres', 'tutanak.aAdres', 'text', 30], ['Tutanak A Telefon', 'tutanak.aTel'], ['Tutanak A Plaka', 'tutanak.aPlaka', 'text', 12],
+  ['Tutanak B Ad Soyad', 'tutanak.bAdSoyad', 'text', 22], ['Tutanak B TC', 'tutanak.bTc', 'text', 14],
+  ['Tutanak B Ehliyet', 'tutanak.bEhliyet', 'text', 14], ['Tutanak B Alındığı Yer', 'tutanak.bAlindigiYer'],
+  ['Tutanak B Adres', 'tutanak.bAdres', 'text', 30], ['Tutanak B Telefon', 'tutanak.bTel'], ['Tutanak B Plaka', 'tutanak.bPlaka', 'text', 12],
 ].map(([header, key, type = 'text', width = 16]) => col(header, key, type, width, 'folder'));
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -82,6 +96,9 @@ function toCell(c, value, folder) {
     case 'stamp': return stamp(value);
     case 'money':
     case 'number': return Number(value) || 0;
+    case 'costSum': return costTotal(value);
+    case 'costs': return costsToText(value);
+    case 'invoice': return value === true ? 'Kesildi' : 'Kesilmedi';
     default: return value ?? '';
   }
 }
@@ -105,13 +122,23 @@ function present(row) {
 }
 
 const text = (v) => String(v).trim();
+const isInvoiced = (v) => v === true || v === 1 || (typeof v === 'string' && foldTr(v.trim()) === 'kesildi');
 
 export function rowToJob(row) {
   const cells = present(row);
+  const headers = new Set(Object.keys(row).map(headerKey));
   const job = {};
   for (const c of JOB_COLUMNS) {
-    if (!cells.has(headerKey(c.header))) continue;
-    const v = cells.get(headerKey(c.header));
+    const key = headerKey(c.header);
+    // Only a sheet that has these columns says anything about them; there an empty cell is an answer.
+    if (c.type === 'costs' || c.type === 'invoice') {
+      if (!headers.has(key)) continue;
+      if (c.type === 'costs') job.costs = costsFromText(cells.get(key));
+      else job.invoiced = isInvoiced(cells.get(key));
+      continue;
+    }
+    if (!cells.has(key)) continue;
+    const v = cells.get(key);
     if (c.from === 'folder') {
       if (c.key === 'name') job.name = text(v);
       if (c.key === 'phone') job.phone = normalizePhone(v);
@@ -130,7 +157,8 @@ export function rowToJob(row) {
       case 'number': job[c.key] = typeof v === 'number' ? v : parseMoney(text(v).replace('%', '')) ?? 0; break;
       case 'paid': job.paid = v === true || v === 1 || /^(odendi|evet|e|x|1|true)$/.test(foldTr(text(v))); break;
       case 'payer': job.payer = foldTr(text(v)).includes('sigorta') ? 'sigorta' : 'musteri'; break;
-      case 'stamp': break;
+      case 'stamp':
+      case 'costSum': break;
       default: job[c.key] = text(v);
     }
   }

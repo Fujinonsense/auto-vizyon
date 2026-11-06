@@ -6,6 +6,7 @@ import { buildWorkbook, readWorkbook, importRecords } from '../app/js/excel/xlsx
 import { monthlySummary } from '../app/js/lib/stats.js';
 import * as repo from '../app/js/data/repo.js';
 import { clearAll } from '../app/js/data/db.js';
+import * as XLSX from '../app/vendor/xlsx.mjs';
 
 const folder = {
   id: 'f1', name: 'Uğurcan Kaya', phone: '05324182790', plate: '34 NMA 887', brand: 'Audi', model: 'A7', color: 'Siyah',
@@ -28,11 +29,83 @@ test('headerKey: case, Turkish letters, spaces and brackets do not matter', () =
   assert.equal(headerKey('Tutar (KDV Hariç)'), 'tutarkdvharic');
 });
 
-test('column lists start with what a person reads first and end with the ids', () => {
+test('column lists start with what a person reads first; new columns come after the ids', () => {
   assert.equal(JOB_COLUMNS[0].header, 'Tarih');
-  assert.equal(JOB_COLUMNS.at(-1).header, 'Klasör No');
+  assert.equal(JOB_COLUMNS.at(-1).header, 'Fatura');
+  assert.deepEqual(JOB_COLUMNS.slice(-6).map((c) => c.header), ['Güncellendi', 'Kayıt No', 'Klasör No', 'Maliyet', 'Maliyet Kalemleri', 'Fatura']);
   assert.equal(FOLDER_COLUMNS[0].header, 'Ad Soyad');
-  assert.equal(FOLDER_COLUMNS.at(-1).header, 'Klasör No');
+  assert.equal(FOLDER_COLUMNS.at(-1).header, 'Tutanak B Plaka');
+  assert.deepEqual(FOLDER_COLUMNS.slice(-15).map((c) => c.header), [
+    'Klasör No',
+    'Tutanak A Ad Soyad', 'Tutanak A TC', 'Tutanak A Ehliyet', 'Tutanak A Alındığı Yer', 'Tutanak A Adres', 'Tutanak A Telefon', 'Tutanak A Plaka',
+    'Tutanak B Ad Soyad', 'Tutanak B TC', 'Tutanak B Ehliyet', 'Tutanak B Alındığı Yer', 'Tutanak B Adres', 'Tutanak B Telefon', 'Tutanak B Plaka',
+  ]);
+});
+
+test('no two headers of a sheet read as the same column', () => {
+  for (const cols of [JOB_COLUMNS, FOLDER_COLUMNS]) {
+    const keys = cols.map((c) => headerKey(c.header));
+    assert.equal(new Set(keys).size, keys.length);
+  }
+});
+
+const costs = [{ cat: 'dis-iscilik', label: '', amount: 20000 }, { cat: 'diger', label: 'Cam filmi', amount: 10000 }];
+const tutanak = {
+  aAdSoyad: 'Uğurcan Kaya', aTc: '10000000146', aEhliyet: '482190-B', aAlindigiYer: 'Kadıköy', aAdres: 'Moda Cad. No 12 Kadıköy İstanbul',
+  aTel: '0532 418 27 90', aPlaka: '34 NMA 887',
+  bAdSoyad: 'Ayşe Kara', bTc: '19090909018', bEhliyet: '106408-B', bAlindigiYer: 'Konak', bAdres: 'Alsancak Mah. 1453 Sok. İzmir',
+  bTel: '0505 377 64 20', bPlaka: '35 KR 7781',
+};
+
+test('job row: costs and the invoice flag go out as Maliyet, Maliyet Kalemleri, Fatura and come back', () => {
+  const row = jobToRow({ ...job, costs, invoiced: true }, folder);
+  assert.equal(row['Maliyet'], 30000);
+  assert.equal(row['Maliyet Kalemleri'], 'Dış işçilik: 20000; Cam filmi: 10000');
+  assert.equal(row['Fatura'], 'Kesildi');
+  const back = rowToJob(row);
+  assert.deepEqual(back.costs, costs);
+  assert.equal(back.invoiced, true);
+  assert.equal('Maliyet' in back, false);
+  assert.equal(back.amount, 5000, 'the cost total never becomes the job amount');
+});
+
+test('job row: a job without costs (or saved before they existed) writes 0, "" and Kesilmedi', () => {
+  for (const j of [job, { ...job, costs: [], invoiced: false }]) {
+    const row = jobToRow(j, folder);
+    assert.equal(row['Maliyet'], 0);
+    assert.equal(row['Maliyet Kalemleri'], '');
+    assert.equal(row['Fatura'], 'Kesilmedi');
+    const back = rowToJob(row);
+    assert.deepEqual(back.costs, []);
+    assert.equal(back.invoiced, false);
+  }
+});
+
+test('rowToJob: empty Maliyet Kalemleri and Fatura cells mean no costs and not invoiced; missing columns mean nothing', () => {
+  const j = rowToJob({ 'Kayıt No': 'j1', 'Maliyet': 500, 'Maliyet Kalemleri': '', 'Fatura': '' });
+  assert.deepEqual(j.costs, []);
+  assert.equal(j.invoiced, false);
+  const old = rowToJob({ 'Kayıt No': 'j1', 'Tutar (KDV Hariç)': 100 });
+  assert.equal('costs' in old, false);
+  assert.equal('invoiced' in old, false);
+});
+
+test('rowToJob: Fatura typed by hand in any case', () => {
+  assert.equal(rowToJob({ FATURA: 'KESİLDİ' }).invoiced, true);
+  assert.equal(rowToJob({ fatura: ' kesildi ' }).invoiced, true);
+  assert.equal(rowToJob({ Fatura: true }).invoiced, true);
+  assert.equal(rowToJob({ Fatura: 'Kesilmedi' }).invoiced, false);
+  assert.equal(rowToJob({ Fatura: 'bilmiyorum' }).invoiced, false);
+  assert.deepEqual(rowToJob({ 'maliyet kalemleri': 'boya: 1.500' }).costs, [{ cat: 'boya', label: '', amount: 1500 }]);
+});
+
+test('folder row round trip keeps all 14 accident report fields', () => {
+  const back = rowToFolder(folderToRow({ ...folder, tutanak }));
+  assert.deepEqual(back.tutanak, tutanak);
+  assert.equal(folderToRow({ ...folder, tutanak })['Tutanak B Telefon'], '0505 377 64 20');
+  const none = folderToRow(folder);
+  assert.equal(none['Tutanak A Ad Soyad'], '', 'a folder saved before the accident report existed writes empty cells');
+  assert.equal('tutanak' in rowToFolder(none), false);
 });
 
 test('job row round trip keeps money, KDV, payment and links', () => {
@@ -96,6 +169,43 @@ test('workbook built for Excel reads back into the same jobs and folders', async
   assert.equal(jobs[0].date, '2026-10-29');
   assert.equal(folders[0].name, 'Uğurcan Kaya');
   assert.equal(folders[0].ruhsat.belgeSeriNo, 'FA 482913');
+});
+
+test('the app-built workbook shows Maliyet as money and reads costs, invoice flag and accident report back', async () => {
+  const blob = await buildWorkbook({ folders: [{ ...folder, tutanak }], jobs: [{ ...job, costs, invoiced: true }] });
+  const wb = XLSX.read(new Uint8Array(await blob.arrayBuffer()), { type: 'array', cellNF: true });
+  const ws = wb.Sheets['İşler'];
+  const cellOf = (header) => ws[XLSX.utils.encode_cell({ r: 1, c: JOB_COLUMNS.findIndex((c) => c.header === header) })];
+  assert.equal(cellOf('Maliyet').v, 30000);
+  assert.equal(cellOf('Maliyet').z, '#,##0.00 "₺"');
+  assert.equal(cellOf('Maliyet').z, cellOf('Toplam (KDV Dahil)').z, 'same money format as the other money columns');
+  assert.equal(cellOf('Fatura').v, 'Kesildi');
+  const { folders, jobs } = await readWorkbook(blob);
+  assert.deepEqual(jobs[0].costs, costs);
+  assert.equal(jobs[0].invoiced, true);
+  assert.deepEqual(folders[0].tutanak, tutanak);
+});
+
+test('readWorkbook: a row with nothing the app knows is not a job, even when the new columns are there', async () => {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Tarih', 'Yapılan İş', 'Maliyet Kalemleri', 'Fatura', 'Renk Kodu'],
+    ['29.10.2026', 'Kapı', 'Boya: 500', 'Kesildi', ''],
+    ['', '', '', '', 'LY9B'],
+    ['', '', '', '', ''],
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'İşler');
+  const { jobs } = await readWorkbook(new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })]));
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].description, 'Kapı');
+  assert.deepEqual(jobs[0].costs, [{ cat: 'boya', label: '', amount: 500 }]);
+  assert.equal(jobs[0].invoiced, true);
+});
+
+test('importRecords: accident report fields from Excel fill in and never wipe the others', async () => {
+  const f = await repo.saveFolder({ name: 'Uğurcan Kaya', plate: '34 NMA 887', tutanak: { aTel: '0532 418 27 90', aAdSoyad: 'Ali' } });
+  await importRecords({ folders: [{ id: f.id, tutanak: { aAdSoyad: 'Ali Veli', bPlaka: '35 KR 7781' } }] });
+  assert.deepEqual((await repo.getFolder(f.id)).tutanak, { aTel: '0532 418 27 90', aAdSoyad: 'Ali Veli', bPlaka: '35 KR 7781' });
 });
 
 test('importRecords: updates by id, matches by plate, creates the rest', async () => {

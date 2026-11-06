@@ -7,6 +7,7 @@ import { shareFiles } from '../native.js';
 
 const MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const MONEY = '#,##0.00 "₺"';
+const MONEY_TYPES = new Set(['money', 'costSum']);
 let lib = null;
 const loadXlsx = async () => (lib ??= await import('../../vendor/xlsx.mjs'));
 
@@ -18,7 +19,7 @@ function sheet(XLSX, columns, rows) {
     for (let r = 1; r <= rows.length; r++) {
       const cell = ws[XLSX.utils.encode_cell({ r, c: ci })];
       if (!cell) continue;
-      if (c.type === 'money') cell.z = MONEY;
+      if (MONEY_TYPES.has(c.type)) cell.z = MONEY;
       if (c.type === 'date' && cell.v) {
         const serial = isoToSerial(cell.v);
         if (serial) Object.assign(cell, { t: 'n', v: serial, z: 'dd.mm.yyyy' });
@@ -48,7 +49,9 @@ export async function buildWorkbook({ folders, jobs, month = '' }) {
   return new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array', compression: true })], { type: MIME });
 }
 
-const hasContent = (o) => Object.values(o).some((v) => v !== '' && v != null && !(typeof v === 'object' && !Object.keys(v).length));
+// "Not invoiced" and "no costs" come from empty cells, so on their own they make no record.
+const hasContent = (o) => Object.entries(o).some(([k, v]) => v !== '' && v != null
+  && !(typeof v === 'object' && !Object.keys(v).length) && !(k === 'invoiced' && v === false));
 
 export async function readWorkbook(blob) {
   const XLSX = await loadXlsx();
@@ -66,7 +69,7 @@ export async function readWorkbook(blob) {
   };
 }
 
-const DOC_KEYS = ['ruhsat', 'ehliyet', 'kimlik'];
+const DOC_KEYS = ['ruhsat', 'ehliyet', 'kimlik', 'tutanak'];
 
 // Rows matched by their id, then by plate; everything else is created. Changes are queued for Google.
 export async function importRecords({ folders = [], jobs = [] }) {

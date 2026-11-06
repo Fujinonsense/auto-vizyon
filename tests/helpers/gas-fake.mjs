@@ -28,14 +28,17 @@ class Range {
   getColumn() { return this.col; }
   getNumRows() { return this.numRows; }
   getSheet() { return this.sheet; }
-  setNumberFormat() { return this; }
+  setNumberFormat(format) {
+    for (let c = 0; c < this.numCols; c++) this.sheet.formats[this.col + c] = format;
+    return this;
+  }
   setFontWeight() { return this; }
   setBackground() { return this; }
   setFontColor() { return this; }
 }
 
 class Sheet {
-  constructor(name, onChange = () => {}) { this.name = name; this.data = []; this.onChange = onChange; }
+  constructor(name, onChange = () => {}) { this.name = name; this.data = []; this.formats = {}; this.onChange = onChange; }
   getName() { return this.name; }
   getRange(row, col, numRows, numCols) { return new Range(this, row, col, numRows, numCols); }
   getLastRow() { return this.data.length; }

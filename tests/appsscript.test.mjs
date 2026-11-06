@@ -21,6 +21,38 @@ test('Code.gs headers are exactly the app column lists', () => {
   assert.deepEqual([...w.context.FOLDER_HEADERS], FOLDER_COLUMNS.map((c) => c.header));
 });
 
+test('new columns sit at the end of both sheets, so rows already in the sheet do not shift', () => {
+  const { w } = ready();
+  const jobs = [...w.context.JOB_HEADERS];
+  const folders = [...w.context.FOLDER_HEADERS];
+  assert.deepEqual(jobs.slice(0, 21), ['Tarih', 'Müşteri', 'Telefon', 'Plaka', 'Araç', 'Model Yılı', 'Şase No', 'Yapılan İş', 'Parçalar',
+    'Tutar (KDV Hariç)', 'KDV Oranı', 'KDV', 'Toplam (KDV Dahil)', 'Ödeme', 'Ödeyen', 'Sigorta Şirketi', 'Dosya No', 'Not',
+    'Güncellendi', 'Kayıt No', 'Klasör No']);
+  assert.deepEqual(jobs.slice(21), ['Maliyet', 'Maliyet Kalemleri', 'Fatura']);
+  assert.deepEqual(folders.slice(0, 30), ['Ad Soyad', 'Telefon', 'Plaka', 'Marka', 'Model', 'Renk', 'Model Yılı', 'Şase No', 'Motor No',
+    'Ticari Adı', 'Ruhsat Sahibi', 'Ruhsat TC/VKN', 'Belge Seri No', 'Tescil Tarihi', 'Ruhsat Tipi', 'Ehliyet Ad Soyad',
+    'Ehliyet TC', 'Ehliyet No', 'Ehliyet Sınıfı', 'Ehliyet Veriliş', 'Ehliyet Doğum Tarihi', 'Kimlik Ad Soyad', 'Kimlik TC',
+    'Kimlik Doğum Tarihi', 'Kimlik Seri No', 'Kimlik Geçerlilik', 'Drive Klasörü', 'Not', 'Güncellendi', 'Klasör No']);
+  assert.deepEqual(folders.slice(30), [
+    'Tutanak A Ad Soyad', 'Tutanak A TC', 'Tutanak A Ehliyet', 'Tutanak A Alındığı Yer', 'Tutanak A Adres', 'Tutanak A Telefon', 'Tutanak A Plaka',
+    'Tutanak B Ad Soyad', 'Tutanak B TC', 'Tutanak B Ehliyet', 'Tutanak B Alındığı Yer', 'Tutanak B Adres', 'Tutanak B Telefon', 'Tutanak B Plaka',
+  ]);
+});
+
+test('kurulum formats Maliyet as money like the other money columns, the new text columns as text', () => {
+  const { w } = ready();
+  const format = (name, header) => {
+    const sh = w.sheets.get(name);
+    return sh.formats[sh.data[0].indexOf(header) + 1];
+  };
+  assert.equal(format('İşler', 'Maliyet'), '#,##0.00 "₺"');
+  assert.equal(format('İşler', 'Maliyet'), format('İşler', 'Toplam (KDV Dahil)'));
+  assert.equal(format('İşler', 'Maliyet Kalemleri'), '@');
+  assert.equal(format('İşler', 'Fatura'), '@');
+  assert.equal(format('Müşteriler', 'Tutanak A TC'), '@');
+  assert.equal(format('Müşteriler', 'Tutanak B Plaka'), '@');
+});
+
 test('kurulum creates the sheets with headers and a token', () => {
   const { w, token } = ready();
   assert.ok(token.length >= 20);
@@ -86,6 +118,14 @@ test('photos go into one Drive folder per customer, named after the folder title
   assert.equal(root.folders[0].files.length, 2);
   const fs = w.sheets.get('Müşteriler').data;
   assert.equal(fs[1][fs[0].indexOf('Drive Klasörü')], r1.driveUrl);
+});
+
+test('an accident report photo is saved in Drive as "Tutanak …"', () => {
+  const { w, token } = ready();
+  const r = post(w, { token, ops: [{ op: 'photo', folderId: 'f1', title: 'A', kind: 'tutanak', photoId: 'p1abcdef', base64: 'anBn' }] }).results[0];
+  assert.equal(r.ok, true);
+  const root = w.drive.roots.find((f) => f.name === 'Auto Vizyon');
+  assert.match(root.folders[0].files[0].getName(), /^Tutanak \d{4}-\d{2}-\d{2} \d{2}:\d{2} p1abcd\.jpg$/);
 });
 
 test('deleteFolder removes the folder row and its jobs', () => {
