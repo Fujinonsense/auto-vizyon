@@ -218,6 +218,12 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
       fields.get('name').input.focus();
       return;
     }
+    // Before anything is saved: a cost left half typed in "Masraf ekle" is never dropped quietly.
+    const costProblem = job?.costDraftProblem();
+    if (costProblem) {
+      toast(costProblem, 'err');
+      return;
+    }
     saving = true;
     if (draft.pending.size) {
       saveBtn.replaceChildren(spinner(), 'Okuma bitiyor');

@@ -71,6 +71,40 @@ test('folder form: the accident report phones are shown, cleaned and saved like 
   assert.equal(saved.phone, '05324182790');
 });
 
+const toastText = () => dom.document.getElementById('toast')?.textContent ?? '';
+
+test('new car: Kaydet with a half-typed cost saves nothing and says why; once fixed the job keeps it', async () => {
+  const form = await openForm(newDraft());
+  type(fieldIn(form, 'Ad soyad'), 'Ali Veli', { leave: true });
+  const box = form.querySelector('.cost-box');
+  byText(box, 'button', 'Masraf ekle').click();
+  type(box.querySelector('.cost-form input.amount'), '2500');
+  await Promise.all(byText(form, 'button', 'Kaydet').click());
+  await settle();
+  assert.deepEqual((await repo.allRecords()).folders, [], 'nothing saved, not even the folder');
+  assert.equal(toastText(), 'Masrafın türünü seç');
+  assert.equal(box.querySelector('.cost-hint').textContent, 'Masrafın türünü seç');
+  assert.equal(dom.document.activeElement, box.querySelector('.cost-cats .chip'));
+
+  box.querySelector('.chip[data-key="nakliye"]').click();
+  await Promise.all(byText(form, 'button', 'Kaydet').click());
+  await settle();
+  const { folders, jobs } = await repo.allRecords();
+  assert.equal(folders.length, 1);
+  assert.deepEqual(jobs.map((j) => j.costs), [[{ cat: 'nakliye', label: '', amount: 2500 }]]);
+  assert.equal(toastText(), 'Kaydedildi');
+});
+
+test('new car without a job: saves as before, no job made up', async () => {
+  const form = await openForm(newDraft());
+  type(fieldIn(form, 'Ad soyad'), 'Ali Veli', { leave: true });
+  byText(form.querySelector('.cost-box'), 'button', 'Masraf ekle').click(); // opened and left empty
+  await Promise.all(byText(form, 'button', 'Kaydet').click());
+  await settle();
+  const { folders, jobs } = await repo.allRecords();
+  assert.deepEqual([folders.length, jobs.length], [1, 0]);
+});
+
 test('folder form: phones read off an accident report are shown spaced and saved as digits', async () => {
   const f = await repo.saveFolder({ name: 'Ali Veli', plate: '34 NMA 887' });
   const draft = newDraft(await repo.getFolder(f.id), 'edit');

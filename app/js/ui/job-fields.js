@@ -110,8 +110,11 @@ export function jobFields(job = {}, { vatRate = 20, vatMode = 'haric' } = {}) {
     oninput: refreshAdd, onkeydown: onEnter(addCost),
   });
   const addBtn = h('button', { class: 'btn primary', type: 'button', disabled: true, onclick: addCost }, icon('check'), 'Ekle');
+  // Why Kaydet did not go through: what is missing in the form.
+  const costHint = h('p', { class: 'cost-hint', hidden: true });
   const costForm = h('div', { class: 'cost-form', hidden: true },
     catChips,
+    costHint,
     whatForField,
     h('label', { class: 'field' }, h('span', {}, 'Tutar'),
       h('div', { class: 'amount-wrap' }, costAmount, h('span', { 'aria-hidden': 'true' }, '₺'))),
@@ -124,8 +127,25 @@ export function jobFields(job = {}, { vatRate = 20, vatMode = 'haric' } = {}) {
     const label = pickedCat === OTHER ? whatFor.value : '';
     return normalizeCosts([{ cat: pickedCat, label, amount: parseMoney(costAmount.value) ?? 0 }]);
   }
+  // Something typed into the open form that would not make a cost: what is missing first, and where to
+  // fix it. Nothing typed (a category alone is nothing typed) is never a problem.
+  function draftProblem() {
+    if (costForm.hidden || pending().length) return null;
+    const other = pickedCat === OTHER;
+    if (!costAmount.value.trim() && !(other && whatFor.value.trim())) return null;
+    if (!pickedCat) return { text: 'Masrafın türünü seç', at: catChips.querySelector('.chip') };
+    if (other && !normalizeCosts([{ cat: OTHER, label: whatFor.value, amount: 1 }]).length) {
+      return { text: 'Masrafın ne için olduğunu yaz', at: whatFor };
+    }
+    return { text: 'Masrafın tutarını yaz', at: costAmount };
+  }
+  function showProblem(problem) {
+    costHint.textContent = problem?.text || '';
+    costHint.hidden = !problem;
+  }
   function refreshAdd() {
     addBtn.disabled = pending().length !== 1;
+    if (!costHint.hidden) showProblem(draftProblem());
   }
   function pickCat(key) {
     pickedCat = key;
@@ -149,6 +169,7 @@ export function jobFields(job = {}, { vatRate = 20, vatMode = 'haric' } = {}) {
       b.setAttribute('aria-pressed', 'false');
     });
     addBtn.disabled = true;
+    showProblem(null);
     costForm.hidden = !open;
     openBtn.hidden = open;
   }
@@ -176,6 +197,20 @@ export function jobFields(job = {}, { vatRate = 20, vatMode = 'haric' } = {}) {
     toggle('Ödendi', state.paid, (v) => { state.paid = v; }),
     toggle('Fatura kesildi', state.invoiced, (v) => { state.invoiced = v; }),
     h('div', { class: 'field cost-box' }, h('span', {}, 'Maliyet'), costList, costSum, openBtn, costForm));
+  // Asked by Kaydet before saving: a cost left half typed is never dropped quietly. Says what is missing
+  // under the chips, puts the cursor there and returns the same words for a toast ('' when all is well).
+  function costDraftProblem() {
+    const problem = draftProblem();
+    showProblem(problem);
+    if (!problem) return '';
+    problem.at.scrollIntoView({ block: 'center' });
+    problem.at.focus({ preventScroll: true });
+    return problem.text;
+  }
   // A cost typed into the open form but not added with "Ekle" is still saved, never lost.
-  return { el, read: () => ({ ...state, parts: [...state.parts], costs: [...state.costs, ...pending()], invoiced: state.invoiced }) };
+  return {
+    el,
+    read: () => ({ ...state, parts: [...state.parts], costs: [...state.costs, ...pending()], invoiced: state.invoiced }),
+    costDraftProblem,
+  };
 }

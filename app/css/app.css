@@ -699,6 +699,7 @@ button.photo-main { display: grid; place-content: center; justify-items: center;
 .cost-row .icon-btn { flex: none; color: var(--steel); }
 .cost-form { display: grid; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); }
 .chips.wrap.cost-cats .chip { min-height: 48px; font-size: 15px; }
+.cost-hint { font-size: 15px; font-weight: 600; color: var(--due); }
 
 .switch { display: flex; align-items: center; justify-content: space-between; min-height: var(--tap); font-weight: 600; cursor: pointer; }
 .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }

@@ -11,6 +11,11 @@ export async function openJobSheet(folderId, job = null) {
   const note = h('textarea', { rows: 2, placeholder: 'İsteğe bağlı', value: job?.note || '' });
 
   async function save() {
+    const problem = ui.costDraftProblem();
+    if (problem) {
+      toast(problem, 'err');
+      return;
+    }
     await saveJob({ ...(job ? { id: job.id } : {}), folderId, ...ui.read(), date: date.value || todayIso(), note: note.value });
     toast('Kaydedildi');
     ref.close();
