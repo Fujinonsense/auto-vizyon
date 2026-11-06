@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { gasWorld } from './helpers/gas-fake.mjs';
-import { JOB_COLUMNS, FOLDER_COLUMNS } from '../app/js/excel/columns.js';
+import { JOB_COLUMNS, FOLDER_COLUMNS, rowToJob } from '../app/js/excel/columns.js';
+import { costTotal } from '../app/js/lib/costs.js';
 
 const post = (w, body) => JSON.parse(w.context.doPost({ postData: { contents: JSON.stringify(body) } }).getContent());
 const jobRow = (over = {}) => ({
@@ -102,6 +103,69 @@ test('onEdit stamps the row and recomputes KDV and total when the amount changes
   assert.equal(sheet.data[1][h.indexOf('KDV')], 500);
   assert.equal(sheet.data[1][h.indexOf('Toplam (KDV Dahil)')], 3000);
   assert.ok(sheet.data[1][h.indexOf('Güncellendi')].getTime() > 0);
+});
+
+test('a hand edit of the cost items recomputes Maliyet; a Maliyet typed by hand goes back to the items', () => {
+  const { w, token } = ready();
+  post(w, { token, ops: [{ op: 'upsertJob', row: jobRow({ Maliyet: 25000, 'Maliyet Kalemleri': 'Dış işçilik: 25000' }) }] });
+  const sheet = w.sheets.get('İşler');
+  const h = sheet.data[0];
+  const cell = (header) => sheet.data[1][h.indexOf(header)];
+  const edit = (header, value) => {
+    sheet.data[1][h.indexOf(header)] = value;
+    w.context.onEdit({ range: sheet.getRange(2, h.indexOf(header) + 1) });
+  };
+  edit('Maliyet Kalemleri', 'Dış işçilik: 20000; Boya: 1.500');
+  assert.equal(cell('Maliyet'), 21500);
+  assert.equal(cell('Maliyet Kalemleri'), 'Dış işçilik: 20000; Boya: 1.500'); // his text stays as he typed it
+  assert.equal(cell('Toplam (KDV Dahil)'), 6000);
+  edit('Maliyet', 99999);
+  assert.equal(cell('Maliyet'), 21500);
+  edit('Maliyet Kalemleri', '');
+  assert.equal(cell('Maliyet'), 0);
+});
+
+test('after a hand edit the sheet\'s Maliyet is what the phone reads from the same cost items', () => {
+  const { w, token } = ready();
+  post(w, { token, ops: [{ op: 'upsertJob', row: jobRow() }] });
+  const sheet = w.sheets.get('İşler');
+  const h = sheet.data[0];
+  const cases = [
+    ['Dış işçilik: 20.000; Boya: 1.250,50; Cam filmi: 1500', 22750.5],
+    ['Boya: 1,250.50', 1250.5],
+    ['Boya: 1,5', 1.5],
+    ['Boya: 1.000.000', 1000000],
+    ['Boya: 2.500 TL; Cam filmi: 20 000 ₺', 22500],
+    ['Boya: 100\r\nCam filmi: 50\nSarf malzeme: 25', 175],
+    ['Not: Boya: 300', 300],
+    ['Boya: 0.1; Cam filmi: 0.2', 0.3],
+    ['Boya: 1.0049; Cam filmi: 1.0049', 2], // each item is rounded to kuruş first, as on the phone
+    [': 500; ::: 600; Boya: 700', 700], // an amount without a label is not an item
+    ['Boya: 0; Yedek parça: -5; Cam filmi: abc; Lastik: 1.000,000.5; Boya 500;  ;  ', 0],
+    ['', 0],
+    [1500, 0],
+    [new Date(2026, 10, 6), 0],
+  ];
+  for (const [items, expected] of cases) {
+    sheet.data[1][h.indexOf('Maliyet Kalemleri')] = items;
+    w.context.onEdit({ range: sheet.getRange(2, h.indexOf('Maliyet Kalemleri') + 1) });
+    const phone = rowToJob(post(w, { token, action: 'pull', since: 0 }).jobs[0]);
+    assert.equal(sheet.data[1][h.indexOf('Maliyet')], expected, `sheet: ${String(items)}`);
+    assert.equal(costTotal(phone.costs), expected, `phone: ${String(items)}`);
+  }
+});
+
+test('a sheet still without the cost columns keeps recomputing KDV and total on hand edits', () => {
+  const { w, token } = ready();
+  const sheet = w.sheets.get('İşler');
+  sheet.data[0] = sheet.data[0].slice(0, sheet.data[0].indexOf('Maliyet')); // the live sheet before the new headers are typed in
+  post(w, { token, ops: [{ op: 'upsertJob', row: jobRow({ Maliyet: 1500, 'Maliyet Kalemleri': 'Boya: 1500' }) }] });
+  const h = sheet.data[0];
+  sheet.data[1][h.indexOf('Tutar (KDV Hariç)')] = 2500;
+  w.context.onEdit({ range: sheet.getRange(2, 1, 1, h.length) });
+  assert.equal(sheet.data[1][h.indexOf('KDV')], 500);
+  assert.equal(sheet.data[1][h.indexOf('Toplam (KDV Dahil)')], 3000);
+  assert.equal(sheet.getLastColumn(), h.length);
 });
 
 test('photos go into one Drive folder per customer, named after the folder title', () => {

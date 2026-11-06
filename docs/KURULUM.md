@@ -41,6 +41,8 @@ Kurulum şunları da yapar: Drive'da **Auto Vizyon** klasörü, içinde **Auto V
 
 **Maliyet, fatura, kaza tutanağı (Kasım 2026):** tabloya yeni sütunlar eklendi, hepsi sayfaların en sonunda, eski satırlar kaymaz: **İşler**'de **Maliyet**, **Maliyet Kalemleri**, **Fatura**; **Müşteriler**'de **Tutanak A Ad Soyad** … **Tutanak B Plaka** (14 sütun). Başlıklar tabloda olunca şu anki Code.gs onları hemen doldurur; elle yazılabilir ya da **kurulum** ekler (Maliyet'i para biçimine de sokar). Tutanak fotoğrafları Drive'a ancak yeni `Code.gs` yapıştırılıp yukarıdaki gibi yeni sürümle dağıtılınca "Tutanak …" adıyla kaydedilir, o zamana kadar "Fotoğraf …" adıyla. Tabloya kendi sütununu eklediysen **kurulum**'dan önce onu yeni sütunların sağına taşı: kurulum ilk satırdaki başlıkları baştan yazar.
 
+**Maliyet** sütununa elle yazma; kalemleri **Maliyet Kalemleri** sütununa yaz, **Maliyet** oradan hesaplanır (yeni `Code.gs` ile).
+
 ## 3. Kurulum kodu (2 dakika)
 
 `auto-vizyon` klasöründe:

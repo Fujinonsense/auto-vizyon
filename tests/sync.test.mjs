@@ -81,6 +81,7 @@ test('costs, the invoice flag and the accident report reach the sheet and come b
   rowOf(j.id)[jh.indexOf('Fatura')] = 'Kesilmedi';
   rowOf(j.id)[jh.indexOf('Maliyet Kalemleri')] = 'Dış işçilik: 20000';
   w.context.onEdit({ range: sheet.getRange(2, jh.indexOf('Maliyet Kalemleri') + 1, sheet.data.length - 1, 2) });
+  assert.equal(rowOf(j.id)[jh.indexOf('Maliyet')], 20000);
   await syncNow();
   const back = await repo.getJob(j.id);
   assert.equal(back.invoiced, false);

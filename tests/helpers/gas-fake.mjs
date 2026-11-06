@@ -40,7 +40,12 @@ class Range {
 class Sheet {
   constructor(name, onChange = () => {}) { this.name = name; this.data = []; this.formats = {}; this.onChange = onChange; }
   getName() { return this.name; }
-  getRange(row, col, numRows, numCols) { return new Range(this, row, col, numRows, numCols); }
+  // Like Apps Script: a range never starts before the first row or column (a missing header is -1 + 1 = 0).
+  getRange(row, col, numRows, numCols) {
+    if (!(row >= 1)) throw new Error('The starting row of the range is too small.');
+    if (!(col >= 1)) throw new Error('The starting column of the range is too small.');
+    return new Range(this, row, col, numRows, numCols);
+  }
   getLastRow() { return this.data.length; }
   getLastColumn() { return Math.max(0, ...this.data.map((r) => r.length)); }
   getDataRange() { return new Range(this, 1, 1, Math.max(1, this.getLastRow()), Math.max(1, this.getLastColumn())); }

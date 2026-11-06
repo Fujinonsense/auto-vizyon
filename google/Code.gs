@@ -94,7 +94,7 @@ function doPost(e) {
   return json_(handle_(body));
 }
 
-// Manual edits in the sheet: stamp the row so the phone picks it up, keep KDV and total right.
+// Manual edits in the sheet: stamp the row so the phone picks it up, keep KDV, total and Maliyet right.
 function onEdit(e) {
   if (!e || !e.range) return;
   var sh = e.range.getSheet();
@@ -261,6 +261,9 @@ function recompute_(sh, headers, r) {
   var vat = Math.round(net * rate) / 100;
   sh.getRange(r, headers.indexOf('KDV') + 1).setValue(vat);
   sh.getRange(r, headers.indexOf('Toplam (KDV Dahil)') + 1).setValue(Math.round((net + vat) * 100) / 100);
+  var itemsCol = headers.indexOf('Maliyet Kalemleri');
+  var costCol = headers.indexOf('Maliyet');
+  if (itemsCol >= 0 && costCol >= 0) sh.getRange(r, costCol + 1).setValue(costTotal_(row[itemsCol]));
 }
 
 function writeSummary_() {
@@ -399,6 +402,38 @@ function toDate_(v) {
 
 function toMs_(v) {
   return v instanceof Date ? v.getTime() : Number(v) || 0;
+}
+
+// Maliyet is always the sum of the items, counted the way the phone reads them (costsFromText in
+// app/js/lib/costs.js): each item is "label: amount"; one without a label or a positive amount does not
+// count. Typed by hand the amounts may use Turkish separators ("20.000", "1.250,50").
+function costTotal_(text) {
+  if (typeof text !== 'string') return 0; // a number or date typed into the cell holds no items
+  var sum = text.split(/[;\r\n]+/).reduce(function (total, part) {
+    var at = part.lastIndexOf(':');
+    if (at < 0 || !/[^;:\s]/.test(part.slice(0, at))) return total;
+    return total + money_(part.slice(at + 1));
+  }, 0);
+  return Math.round(sum * 100) / 100;
+}
+
+// Same rules as parseMoney in app/js/lib/format.js: both separators → the later one is the decimal;
+// one separator followed by exactly three digits (or used more than once) is a thousands separator.
+// Rounded to kuruş like each cost item on the phone; empty, negative or other text is 0.
+function money_(s) {
+  s = String(s).replace(/₺|TL|tl|\s/g, '');
+  if (!/^[\d.,]+$/.test(s) || !/\d/.test(s)) return 0;
+  var dot = s.lastIndexOf('.');
+  var comma = s.lastIndexOf(',');
+  if (dot >= 0 && comma >= 0) {
+    var dec = dot > comma ? '.' : ',';
+    s = s.split(dec === '.' ? ',' : '.').join('').replace(dec, '.');
+  } else if (dot >= 0 || comma >= 0) {
+    var parts = s.split(dot >= 0 ? '.' : ',');
+    s = parts.length > 2 || parts[parts.length - 1].length === 3 ? parts.join('') : parts.join('.');
+  }
+  var n = Number(s);
+  return isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
 }
 
 function authorized_(token) {
