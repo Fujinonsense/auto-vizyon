@@ -1,7 +1,7 @@
 // Reads plates and documents with Claude, straight from the phone (official SDK, browser build).
 import { SYSTEM, KINDS } from './schemas.js';
 import { normalizePlate, isValidPlate, normalizeVin, isValidVin, isValidTc } from '../lib/validate.js';
-import { trTitle, latinTitle, normalizePhone } from '../lib/format.js';
+import { trTitle, latinTitle, cleanPhone } from '../lib/format.js';
 import { blobToBase64 } from '../media/image.js';
 
 // Always this model: the app offers no cheaper one to choose by mistake.
@@ -70,10 +70,11 @@ function normalize(kind, data) {
     fields[key] = fields[key].replace(/\D/g, '');
     flag(key, isValidTc(fields[key]));
   }
-  // Kept like the customer's phone ("05053776420"); a Turkish number is 0 and ten digits.
+  // Kept like the customer's phone ("05053776420"); a Turkish number is 0 and ten digits. Anything else
+  // (an extension, two numbers) stays as read, marked for a look.
   for (const key of PHONES) {
     if (!fields[key]) continue;
-    fields[key] = normalizePhone(fields[key]);
+    fields[key] = cleanPhone(fields[key]);
     flag(key, /^0[1-9]\d{9}$/.test(fields[key]));
   }
   if (fields.tcVkn) {

@@ -11,7 +11,7 @@ const { clearAll } = await import('../app/js/data/db.js');
 const { route } = await import('../app/js/ui/router.js');
 const { h } = await import('../app/js/ui/dom.js');
 const { newDraft, folderToSave } = await import('../app/js/ui/docs.js');
-const { mergeAi } = await import('../app/js/lib/merge-ai.js');
+const { mergeAi, replaceAi, getPath } = await import('../app/js/lib/merge-ai.js');
 const { editScreen, folderForm } = await import('../app/js/ui/screens/folder-edit.js');
 
 // Where a saved form goes next.
@@ -144,6 +144,75 @@ test('same plate: a new visit keeps the earlier accident report with its AI mark
   assert.equal(v3.tutanak.bAdSoyad, 'Ayşe Kara');
   assert.equal('bAdres' in v3.tutanak, false);
   assert.ok(v3.unclear.includes('tutanak.bAdres'));
+});
+
+test('folder form: a driver phone that is not one number stays as typed, on screen and saved', async () => {
+  const f = await repo.saveFolder({ name: 'Ali Veli', plate: '34 NMA 887' });
+  const form = await openEdit(f);
+  const [a, b] = form.querySelectorAll('details[data-kind="tutanak"]');
+  type(fieldIn(a, 'Telefon'), '0212 555 44 33 / 12 ', { leave: true });
+  type(fieldIn(b, 'Telefon'), '0532 418 27 90 - 0216 333 22 11', { leave: true });
+  assert.equal(fieldIn(a, 'Telefon').value, '0212 555 44 33 / 12');
+  await Promise.all(byText(form, 'button', 'Kaydet').click());
+  await settle();
+  const saved = await repo.getFolder(f.id);
+  assert.equal(saved.tutanak.aTel, '0212 555 44 33 / 12');
+  assert.equal(saved.tutanak.bTel, '0532 418 27 90 - 0216 333 22 11');
+  const again = await openEdit(saved);
+  assert.equal(fieldIn(again.querySelectorAll('details[data-kind="tutanak"]')[1], 'Telefon').value, '0532 418 27 90 - 0216 333 22 11');
+});
+
+test('folder form: a report read again while a Tutanak field has focus wins there, unless the father typed in it', async () => {
+  const f = await repo.saveFolder({ name: 'Ali Veli', plate: '34 NMA 887' });
+  const draft = newDraft(await repo.getFolder(f.id), 'edit');
+  const form = await openForm(draft);
+  await read(draft, 'tutanak');
+  const [, b] = form.querySelectorAll('details[data-kind="tutanak"]');
+  const plate = fieldIn(b, 'Plaka');
+  const tel = fieldIn(b, 'Telefon');
+  assert.equal(plate.value, '35 KR 7781');
+  // The same report read again, this time with driver B's plate and phone unreadable, as readInto does it.
+  const readAgain = () => {
+    const changed = replaceAi(draft.folder, 'tutanak', { aAdSoyad: 'Uğurcan Kaya', bAdSoyad: 'Ayşe Kara' }, ['bPlaka', 'bTel']);
+    draft.reads.tutanak = { state: 'done', count: 2, changed, blobs: [] };
+    draft.notify('tutanak');
+  };
+  plate.focus();
+  readAgain();
+  assert.equal(plate.value, '35 KR 7781', 'a field with focus is not repainted');
+  plate.blur();
+  assert.equal(plate.value, '', 'left without typing: the read wins');
+  assert.equal(getPath(draft.folder, 'tutanak.bPlaka') ?? '', '');
+  assert.ok(draft.folder.unclear.includes('tutanak.bPlaka'), 'still marked to check, not taken as typed');
+
+  type(tel, '0532 000 00 00');
+  readAgain();
+  tel.blur();
+  assert.equal(tel.value, '0532 000 00 00', 'typed in: the father\'s number stays');
+  await Promise.all(byText(form, 'button', 'Kaydet').click());
+  await settle();
+  const saved = await repo.getFolder(f.id);
+  assert.equal(saved.tutanak.bPlaka ?? '', '');
+  assert.equal(saved.tutanak.bTel, '05320000000');
+});
+
+test('same plate: a Tutanak field typed in and erased again on a new visit leaves the earlier report alone', async () => {
+  const first = newDraft();
+  mergeAi(first.folder, 'arac', { plaka: '34 NMA 887' }, []);
+  mergeAi(first.folder, 'tutanak', { bAdSoyad: 'Mehmet Yılmaz', bPlaka: '06 ABC 123' }, []);
+  const v1 = await repo.saveFolder(await folderToSave(first));
+
+  const visit = await openForm(newDraft());
+  type(fieldIn(visit, 'Plaka'), '34nma887', { leave: true });
+  await settle();
+  const [, b] = visit.querySelectorAll('details[data-kind="tutanak"]');
+  type(fieldIn(b, 'Ad Soyad'), 'A');
+  type(fieldIn(b, 'Ad Soyad'), '', { leave: true });
+  await Promise.all(byText(visit, 'button', 'Kaydet').click());
+  await settle();
+  const v2 = await repo.getFolder(v1.id);
+  assert.equal(v2.tutanak.bAdSoyad, 'Mehmet Yılmaz');
+  assert.equal(v2.tutanak.bPlaka, '06 ABC 123');
 });
 
 test('folder form: the two driver sections are "Tutanak A" and "Tutanak B", word and letter never apart', async () => {

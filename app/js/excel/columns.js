@@ -4,7 +4,7 @@
 // and "not invoiced").
 // New columns only ever go at the end, so rows already in the sheet never shift.
 import { foldTr } from '../lib/search.js';
-import { formatPhone, normalizePhone, parseMoney } from '../lib/format.js';
+import { formatPhone, cleanPhone, parseMoney } from '../lib/format.js';
 import { normalizePlate } from '../lib/validate.js';
 import { getPath, setPath } from '../lib/merge-ai.js';
 import { computeVat } from '../lib/vat.js';
@@ -53,7 +53,8 @@ export const FOLDER_COLUMNS = [
   ['Kimlik Seri No', 'kimlik.seriNo'], ['Kimlik Geçerlilik', 'kimlik.gecerlilik'],
   ['Drive Klasörü', 'driveUrl', 'link', 30], ['Not', 'note'], ['Güncellendi', 'updatedAt', 'stamp', 17], ['Klasör No', 'id', 'id', 38],
   // Kaza tutanağı: the two drivers as read (or typed), kept as plain text. The phones go like the
-  // customer's: spaced in the sheet (so a column left as Automatic keeps the leading 0), digits on the phone.
+  // customer's: one number spaced in the sheet (so a column left as Automatic keeps the leading 0) and
+  // digits on the phone; anything else (an extension, two numbers) as typed on both (see cleanPhone).
   ['Tutanak A Ad Soyad', 'tutanak.aAdSoyad', 'text', 22], ['Tutanak A TC', 'tutanak.aTc', 'text', 14],
   ['Tutanak A Ehliyet', 'tutanak.aEhliyet', 'text', 14], ['Tutanak A Alındığı Yer', 'tutanak.aAlindigiYer'],
   ['Tutanak A Adres', 'tutanak.aAdres', 'text', 30], ['Tutanak A Telefon', 'tutanak.aTel', 'phone'], ['Tutanak A Plaka', 'tutanak.aPlaka', 'text', 12],
@@ -124,7 +125,9 @@ function present(row) {
 }
 
 const text = (v) => String(v).trim();
-const isInvoiced = (v) => v === true || v === 1 || (typeof v === 'string' && foldTr(v.trim()) === 'kesildi');
+// A yes typed by hand, in the Ödeme and Fatura columns alike: the column's own word or a plain yes.
+const YES = new Set(['evet', 'e', 'x', '1', 'true', 'var']);
+const isYes = (v, word) => v === true || v === 1 || (typeof v === 'string' && (foldTr(v.trim()) === word || YES.has(foldTr(v.trim()))));
 
 export function rowToJob(row) {
   const cells = present(row);
@@ -136,15 +139,20 @@ export function rowToJob(row) {
     // under a header typed a little differently an empty cell says nothing.
     if (c.type === 'costs' || c.type === 'invoice') {
       if (!cells.has(key) && !(c.header in row)) continue;
-      if (c.type === 'costs') job.costs = costsFromText(cells.get(key));
-      else job.invoiced = isInvoiced(cells.get(key));
+      if (c.type === 'costs') {
+        // Empty under the exact header: no costs. Something no one can read as items ("Boya 500" without
+        // the colon, a bare number) says nothing, so the phone's costs stay.
+        const raw = cells.get(key);
+        const costs = costsFromText(raw);
+        if (costs.length || (c.header in row && text(raw ?? '') === '')) job.costs = costs;
+      } else job.invoiced = isYes(cells.get(key), 'kesildi');
       continue;
     }
     if (!cells.has(key)) continue;
     const v = cells.get(key);
     if (c.from === 'folder') {
       if (c.key === 'name') job.name = text(v);
-      if (c.key === 'phone') job.phone = normalizePhone(v);
+      if (c.key === 'phone') job.phone = cleanPhone(v);
       if (c.key === 'plate') job.plate = normalizePlate(v);
       continue;
     }
@@ -158,7 +166,7 @@ export function rowToJob(row) {
         }
         break;
       case 'number': job[c.key] = typeof v === 'number' ? v : parseMoney(text(v).replace('%', '')) ?? 0; break;
-      case 'paid': job.paid = v === true || v === 1 || /^(odendi|evet|e|x|1|true)$/.test(foldTr(text(v))); break;
+      case 'paid': job.paid = isYes(v, 'odendi'); break;
       case 'payer': job.payer = foldTr(text(v)).includes('sigorta') ? 'sigorta' : 'musteri'; break;
       case 'stamp':
       case 'costSum': break;
@@ -175,7 +183,7 @@ export function rowToFolder(row) {
   for (const c of FOLDER_COLUMNS) {
     if (!cells.has(headerKey(c.header)) || c.type === 'stamp') continue;
     const v = text(cells.get(headerKey(c.header)));
-    setPath(folder, c.key, c.type === 'phone' ? normalizePhone(v) : c.type === 'plate' ? normalizePlate(v) : v);
+    setPath(folder, c.key, c.type === 'phone' ? cleanPhone(v) : c.type === 'plate' ? normalizePlate(v) : v);
   }
   return folder;
 }

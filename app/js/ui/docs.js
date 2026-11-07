@@ -3,7 +3,7 @@ import { getSettings, getFolder } from '../data/repo.js';
 import { readDocument } from '../ai/claude.js';
 import { KINDS } from '../ai/schemas.js';
 import { mergeAi, replaceAi } from '../lib/merge-ai.js';
-import { normalizePhone } from '../lib/format.js';
+import { cleanPhone } from '../lib/format.js';
 import { normalizePlate } from '../lib/validate.js';
 import { openCamera } from '../media/camera.js';
 import { prepareImage } from '../media/image.js';
@@ -52,15 +52,15 @@ export function readInto(draft, kind, blobs) {
   return p;
 }
 
-// What the form saves: name, phone and plate cleaned, the accident report's two phones like the
-// customer's (digits with the leading 0), into the draft's own folder or a new one. The draft on
-// screen stays as typed.
+// What the form saves: name and plate cleaned, the customer's and the accident report's two phones as
+// digits with the leading 0 when each is one number and as typed when not (see cleanPhone), into the
+// draft's own folder or a new one. The draft on screen stays as typed.
 export async function folderToSave(draft) {
   const f = draft.folder;
-  const data = { ...f, name: (f.name || '').trim(), phone: normalizePhone(f.phone), plate: f.plate ? normalizePlate(f.plate) : '' };
+  const data = { ...f, name: (f.name || '').trim(), phone: cleanPhone(f.phone), plate: f.plate ? normalizePlate(f.plate) : '' };
   if (f.tutanak) {
     data.tutanak = { ...f.tutanak };
-    for (const key of ['aTel', 'bTel']) if (data.tutanak[key]) data.tutanak[key] = normalizePhone(data.tutanak[key]);
+    for (const key of ['aTel', 'bTel']) if (data.tutanak[key]) data.tutanak[key] = cleanPhone(data.tutanak[key]);
   }
   if (!draft.targetId) {
     delete data.id;
@@ -68,14 +68,17 @@ export async function folderToSave(draft) {
   }
   data.id = draft.targetId;
   // A new visit saved into the folder of a car that came before: when it read or typed no accident report
-  // of its own, the folder keeps the one it has (a report is never copied into a new folder), and the
-  // report keeps its AI marks with it, so a report read later replaces it.
-  const earlier = draft.mode === 'new' && !('tutanak' in f) ? await getFolder(draft.targetId) : null;
-  if (earlier) {
-    const marks = (list) => (list || []).filter((p) => p.startsWith(REPORT));
-    data.aiFilled = [...new Set([...(data.aiFilled || []), ...marks(earlier.aiFilled)])];
-    data.unclear = [...new Set([...(data.unclear || []), ...marks(earlier.unclear)])];
-  }
+  // of its own (a field typed and erased again is none), the folder keeps the one it has (a report is
+  // never copied into a new folder), and the report keeps its AI marks with it, so a report read later
+  // replaces it. Marks of the visit's own empty reading go: they belong to no report.
+  const ownReport = Object.values(f.tutanak || {}).some((v) => String(v ?? '').trim() !== '');
+  if (draft.mode !== 'new' || ownReport) return data;
+  delete data.tutanak;
+  const earlier = await getFolder(draft.targetId);
+  const merged = (mine, theirs) => [...new Set([
+    ...(mine || []).filter((p) => !p.startsWith(REPORT)), ...(theirs || []).filter((p) => p.startsWith(REPORT))])];
+  data.aiFilled = merged(data.aiFilled, earlier?.aiFilled);
+  data.unclear = merged(data.unclear, earlier?.unclear);
   return data;
 }
 

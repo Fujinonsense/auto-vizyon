@@ -66,10 +66,19 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
   }
 
   function field(label, path, { type = 'text', inputmode, placeholder = '', caps = 'words', clean } = {}) {
+    // Typed in since it got focus. A read that lands meanwhile changes the field without showing it
+    // (paint leaves a focused field alone); unless the father typed, the read wins when he leaves it.
+    let typed = false;
     const input = h('input', {
       type, inputmode, placeholder, autocomplete: 'off', autocapitalize: caps, value: getPath(f, path) || '',
-      oninput: () => { setPath(f, path, input.value); markManual(f, path); paint(path); dirty = true; },
+      onfocus: () => { typed = false; },
+      oninput: () => { typed = true; setPath(f, path, input.value); markManual(f, path); paint(path); dirty = true; },
       onblur: () => {
+        if (!typed) {
+          input.value = getPath(f, path) || '';
+          return;
+        }
+        typed = false;
         if (!clean || !input.value) return;
         const v = clean(input.value);
         setPath(f, path, v);

@@ -12,7 +12,7 @@ const driverRows = (d) => [
 // The two drivers' blocks: shown only once something is in them (the others are always listed, empty or
 // not), and in "Hepsini kopyala" each starts with its title, as both have the same labels.
 const DRIVERS = new Set(['tutanakA', 'tutanakB']);
-// Kept as digits, shown spaced: the customer's and the two drivers' phones.
+// The customer's and the two drivers' phones: one number kept as digits and shown spaced, anything else as typed.
 const PHONES = new Set(['phone', 'tutanak.aTel', 'tutanak.bTel']);
 
 const SECTIONS = [

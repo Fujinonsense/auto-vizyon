@@ -105,6 +105,24 @@ test('a same-plate visit that reads its own accident report replaces the earlier
   assert.ok(!tutanakMarks(v2.aiFilled).includes('tutanak.bAdres'));
 });
 
+test('a same-plate visit whose report fields were typed and erased again keeps the earlier report', async () => {
+  const v1 = await firstVisit();
+  const d = nextVisit(v1.id);
+  d.folder.tutanak = { bPlaka: '', aAdSoyad: '  ' };
+  const v2 = await repo.saveFolder(await folderToSave(d));
+  assert.equal(v2.id, v1.id);
+  assert.equal(v2.tutanak.bAdSoyad, 'Mehmet Yılmaz');
+  assert.equal(v2.tutanak.bPlaka, '06 ABC 123');
+  assert.deepEqual(tutanakMarks(v2.aiFilled), tutanakMarks(v1.aiFilled), 'with the AI marks it had');
+  assert.deepEqual(tutanakMarks(v2.unclear), ['tutanak.bTc']);
+
+  // One field filled in is a report of this visit: it replaces the earlier one.
+  const d3 = nextVisit(v1.id);
+  d3.folder.tutanak = { bPlaka: '35 KR 7781', aAdSoyad: '' };
+  const v3 = await repo.saveFolder(await folderToSave(d3));
+  assert.deepEqual(v3.tutanak, { bPlaka: '35 KR 7781', aAdSoyad: '' });
+});
+
 test('the other documents read again still only fill in and correct', async () => {
   const d = newDraft({ name: 'Uğurcan Kaya', ruhsat: { sahibi: 'Uğurcan Kaya', tescilTarihi: '01.01.2020' } }, 'edit');
   await read(d, 'ruhsat');

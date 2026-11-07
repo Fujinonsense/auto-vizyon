@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  formatMoney, parseMoney, formatDate, normalizePhone, formatPhone, waNumber,
+  formatMoney, parseMoney, formatDate, normalizePhone, cleanPhone, formatPhone, waNumber,
   trTitle, latinTitle, folderTitle,
 } from '../app/js/lib/format.js';
 import { plateKey, normalizePlate, isValidPlate, normalizeVin, isValidVin, isValidTc } from '../app/js/lib/validate.js';
@@ -50,6 +50,14 @@ test('phone helpers', () => {
   assert.equal(formatPhone('0212 555 1234'), '0212 555 12 34');
   assert.equal(formatPhone(''), '');
   assert.equal(waNumber('0532 418 27 90'), '905324182790');
+  // One number is its digits; an extension or two numbers stay as typed; no digits, no phone.
+  assert.equal(cleanPhone('+90 532 418 27 90'), '05324182790');
+  assert.equal(cleanPhone(' 0212 555 44 33 / 12 '), '0212 555 44 33 / 12');
+  assert.equal(cleanPhone('0532 418 27 90 - 0216 333 22 11'), '0532 418 27 90 - 0216 333 22 11');
+  assert.equal(cleanPhone('okunmuyor'), '');
+  assert.equal(cleanPhone(undefined), '');
+  assert.equal(formatPhone('0212 555 44 33 / 12'), '0212 555 44 33 / 12');
+  assert.equal(formatPhone('02125554433 12'), '02125554433 12');
 });
 
 test('trTitle: Turkish words use Turkish casing', () => {

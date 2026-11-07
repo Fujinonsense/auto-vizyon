@@ -117,6 +117,32 @@ test('rowToJob: an empty cost items or Fatura cell is an answer only under the e
   assert.deepEqual(pulled.jobs, []);
 });
 
+test('rowToJob: a cost items cell typed by hand that reads as no items leaves the phone\'s costs alone', () => {
+  for (const cell of ['Boya 500', '500', 1500, 'boya', ' ; ']) {
+    assert.equal('costs' in rowToJob({ 'Kayıt No': 'j1', 'Maliyet Kalemleri': cell }), false, String(cell));
+  }
+  const local = { ...job, costs: [{ cat: 'boya', label: '', amount: 700 }], invoiced: false };
+  const row = { ...jobToRow(local, folder), 'Maliyet Kalemleri': 'Boya 500' };
+  const pulled = mergeRemote({ folders: new Map(), jobs: new Map([[local.id, local]]) }, { folders: [], jobs: [{ ...rowToJob(row), remoteStamp: 9 }] }, new Set());
+  assert.deepEqual(pulled.jobs, [], 'the phone keeps its costs');
+  // An empty cell under the exact header is still "no costs", and items that read replace them.
+  assert.deepEqual(rowToJob({ 'Maliyet Kalemleri': '' }).costs, []);
+  assert.deepEqual(rowToJob({ 'Maliyet Kalemleri': '  ' }).costs, []);
+  assert.deepEqual(rowToJob({ 'Maliyet Kalemleri': 'Boya 500; Cam filmi: 1500' }).costs, [{ cat: 'diger', label: 'Cam filmi', amount: 1500 }]);
+});
+
+test('rowToJob: Fatura and Ödeme take the same yes typed by hand, so a hand edit cannot turn a yes into no', () => {
+  for (const yes of ['Kesildi', 'KESİLDİ', 'Evet', 'evet', 'E', 'X', 'x', '1', 'var', 'Var', 'true', 1, true]) {
+    assert.equal(rowToJob({ Fatura: yes }).invoiced, true, String(yes));
+  }
+  for (const yes of ['Ödendi', 'Evet', 'X', '1', 'var', 1, true]) assert.equal(rowToJob({ 'Ödeme': yes }).paid, true, String(yes));
+  for (const no of ['Kesilmedi', 'Hayır', 'yok', '0', 0, false, 'bilmiyorum']) assert.equal(rowToJob({ Fatura: no }).invoiced, false, String(no));
+  const local = { ...job, costs: [], invoiced: true };
+  const row = { ...jobToRow(local, folder), Fatura: 'Evet' };
+  const pulled = mergeRemote({ folders: new Map(), jobs: new Map([[local.id, local]]) }, { folders: [], jobs: [{ ...rowToJob(row), remoteStamp: 9 }] }, new Set());
+  assert.deepEqual(pulled.jobs, [], 'still invoiced on the phone');
+});
+
 test('rowToJob: Fatura typed by hand in any case', () => {
   assert.equal(rowToJob({ FATURA: 'KESİLDİ' }).invoiced, true);
   assert.equal(rowToJob({ fatura: ' kesildi ' }).invoiced, true);
@@ -151,6 +177,21 @@ test('accident report phones keep their leading 0 through the live sheet, and th
     const pulled = mergeRemote({ folders: new Map([[local.id, local]]), jobs: new Map() }, { folders: [{ ...back, remoteStamp: 9 }], jobs: [] }, new Set());
     assert.deepEqual(pulled.folders, [], `${typed}: no false remote change`);
   }
+});
+
+test('an accident report phone that is not one number goes out as typed and comes back unchanged, Automatic columns too', () => {
+  for (const typed of ['0212 555 44 33 / 12', '0532 418 27 90 - 0216 333 22 11']) {
+    const local = { ...folder, tutanak: { aAdSoyad: 'Ali Veli', aTel: typed, bTel: '05053776420' } };
+    const row = folderToRow(local);
+    assert.equal(row['Tutanak A Telefon'], typed, 'spaces and separators: Sheets keeps it as text');
+    const back = rowToFolder(intoLiveSheet(row));
+    assert.deepEqual(back.tutanak, local.tutanak, typed);
+    const pulled = mergeRemote({ folders: new Map([[local.id, local]]), jobs: new Map() }, { folders: [{ ...back, remoteStamp: 9 }], jobs: [] }, new Set());
+    assert.deepEqual(pulled.folders, [], `${typed}: no false remote change`);
+  }
+  // The bare digits it used to write lose the leading 0, or the digits past 15, in such a column.
+  assert.notEqual(String(intoLiveSheet({ 'Tutanak A Telefon': '0212555443312' })['Tutanak A Telefon']), '0212555443312');
+  assert.notEqual(String(intoLiveSheet({ 'Tutanak A Telefon': '0532418279002163332211' })['Tutanak A Telefon']), '532418279002163332211');
 });
 
 test('an accident report phone already stripped in the sheet reads back with its leading 0', () => {

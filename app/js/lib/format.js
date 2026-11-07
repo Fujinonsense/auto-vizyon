@@ -60,9 +60,19 @@ export function normalizePhone(s) {
   return d;
 }
 
+// A phone as it is kept: one Turkish number (typed with or without its 0, or with +90) as its 11 digits.
+// Anything else, an extension ("0212 555 44 33 / 12") or two numbers, stays as typed: its bare digits
+// would be no number to call, and in a sheet column left as Automatic they lose the leading 0 or the
+// digits past 15, where the typed text with its spaces and separators stays text. No digits, no phone.
+export function cleanPhone(s) {
+  const d = normalizePhone(s);
+  return d.length === 11 || !d ? d : String(s ?? '').trim();
+}
+
+// One Turkish number spaced ("0532 418 27 90"); anything else as typed (see cleanPhone).
 export function formatPhone(s) {
   const d = normalizePhone(s);
-  if (d.length !== 11) return d;
+  if (d.length !== 11) return cleanPhone(s);
   return `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7, 9)} ${d.slice(9)}`;
 }
 
