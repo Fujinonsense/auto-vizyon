@@ -61,8 +61,8 @@ Ev klasöründeki `AutoVizyon-imza\google.txt` dosyasında Google adresi ve anah
 
 Baban İstanbul'da olsa da olur; her şey WhatsApp'tan gider.
 
-1. Uygulamayı [TESTFLIGHT.md](TESTFLIGHT.md) ile TestFlight'a yükle ve babana TestFlight bağlantısını gönder.
-2. Baban bağlantıya dokunur. TestFlight yoksa App Store'dan alır, sonra **Kabul Et** → **Yükle**.
+1. Uygulamayı [TESTFLIGHT.md](TESTFLIGHT.md) ile TestFlight'a yükle ve babanı dahili testçi yap (orada 3. adım). Apple ona e-postayla TestFlight daveti gönderir.
+2. Baban App Store'dan TestFlight'ı kurar, davetteki **View in TestFlight**'a dokunur, sonra **Kabul Et** → **Yükle**.
 3. Uygulamayı açar. "Hoş geldin ustam" ekranında **Başlayalım**'a basar.
 4. WhatsApp'taki kurulum kodunun üstüne basılı tutar → **Kopyala**. Uygulamada sağ üstteki dişli (**Ayarlar**) → **Yapıştır**. "Kurulum tamam" yazar.
 5. İlk fotoğrafta iPhone kamera izni sorar: **İzin Ver**.

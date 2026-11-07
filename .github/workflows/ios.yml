@@ -2,14 +2,16 @@ name: iPhone TestFlight
 
 # Builds the iPhone app on a Mac in the cloud. With the IOS_* and ASC_* secrets (see docs/TESTFLIGHT.md)
 # it is signed for the App Store and uploaded to TestFlight; without them it is an unsigned test build.
-# Every uploaded build then goes to the father's external group; testflight-takip.yml sends on any
-# build that had to wait for another review. A TestFlight build lasts 90 days, so a fresh one is
-# built on the 1st and 15th of every month; one missed run still leaves two months.
+# Every uploaded build then gets its "What to Test" note and is checked to reach the father, an internal
+# tester whose group gets every build by itself (an external TF_GROUP group, if one exists, gets the
+# build and its beta review as before); testflight-takip.yml looks after it every day. A TestFlight
+# build lasts 90 days, so a fresh one is built on the 1st and 15th of every month; one missed run
+# still leaves two months.
 on:
   workflow_dispatch:
     inputs:
       dagit_derleme:
-        description: 'Yeni derleme yapma, sadece bu numaralı derlemeyi Babam grubuna gönder (boş: derle ve gönder)'
+        description: 'Yeni derleme yapma, sadece bu numaralı derlemeyi testçilere ulaştır (boş: derle ve gönder)'
         required: false
         default: ''
   schedule:
@@ -200,12 +202,14 @@ jobs:
         if: always() && env.KEYCHAIN != ''
         run: security delete-keychain "$KEYCHAIN" || true
 
-  # Waits for Apple to process the build (usually 5-30 minutes), adds it to the "Babam" group with its
-  # "What to Test" note, turns on its release to the testers and sends it to beta review if it needs
-  # one (tools/testflight.mjs). Slow processing ends as a warning; testflight-takip.yml finishes it.
+  # Waits for Apple to process the build (usually 5-30 minutes), writes its "What to Test" note and
+  # checks that Apple hands it to the internal group with automatic distribution, the father's group.
+  # With an external TF_GROUP group it adds the build there, turns on its release to the testers and
+  # sends it to beta review if it needs one (tools/testflight.mjs). Slow processing ends as a warning;
+  # testflight-takip.yml finishes it.
   # !cancelled() rather than always(): it still runs when ipa is skipped, but a cancel stops it.
   dagit:
-    name: Babam grubuna gönder
+    name: Testçilere ulaştır
     needs: ipa
     if: ${{ !cancelled() && (inputs.dagit_derleme || needs.ipa.outputs.uploaded == 'true') }}
     runs-on: ubuntu-latest
@@ -217,7 +221,7 @@ jobs:
         with:
           node-version: 24
 
-      - name: Derlemeyi Babam grubuna ekle, incelemeye gönder
+      - name: Derleme notunu yaz, testçilere ulaştığını denetle
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}

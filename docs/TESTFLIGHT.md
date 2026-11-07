@@ -1,8 +1,8 @@
 # iPhone uygulaması: TestFlight
 
-Uygulama App Store'da görünmez. Apple'ın deneme sistemi TestFlight ile sadece davet ettiğin kişilere gider. Baban WhatsApp'tan gelen bağlantıya dokunur ve uygulamayı kurar. UDID, kablo, Mac ya da Geliştirici Modu gerekmez; yeni sürümler kendiliğinden gelir.
+Uygulama App Store'da görünmez. Apple'ın deneme sistemi TestFlight ile sadece davet ettiğin kişilere gider. Baban senin App Store Connect ekibinde **dahili testçi**: e-postasına gelen TestFlight davetine dokunur ve uygulamayı kurar. UDID, kablo, Mac ya da Geliştirici Modu gerekmez; yeni sürümler kendiliğinden gelir.
 
-Toplam süre: ilk seferde yaklaşık 45 dakika, üstüne Apple'ın beta incelemesi (genelde 1-2 gün). Sonraki her derleme 5-10 dakika sürer, Apple'ın işlemesi 5-15 dakika daha.
+Toplam süre: ilk seferde yaklaşık 45 dakika. Dahili testte Apple'ın beta incelemesi yok. Sonraki her derleme 5-10 dakika sürer, Apple'ın işlemesi 5-15 dakika daha.
 
 ## 0. Hazırlık (bir kere)
 
@@ -49,18 +49,18 @@ Bundan sonra `app/` ya da `ios/` her değiştiğinde yeni derleme kendiliğinden
 
 ## 3. Test edenler (10 dakika, bir kere)
 
-App Store Connect → **Auto Vizyon** → **TestFlight**:
+Durum (7 Kasım 2026): bu bölüm yapıldı. Baban `Ben` dahili grubunda; eski `Babam` dış grubu yok.
 
-1. **Test Information**: kısa bir açıklama ve geri bildirim e-postası. **Beta App Review Information**'a adını, telefonunu ve e-postanı yaz.
-2. **Sen (dahili)**: **Internal Testing → +** ile bir grup aç, kendini ekle. Derleme işlenir işlenmez, incelemesiz, kendi iPhone'una TestFlight'tan kurarsın.
-3. **Baban (harici)**: **External Testing → +** ile `Babam` grubunu aç → derlemeyi ekle → **Submit for Review**. Onay genelde 1-2 gün sürer. Onaydan sonra **Public Link**'i aç, kişi sınırını 2 yap, bağlantıyı kopyala.
+1. App Store Connect → **Auto Vizyon** → **TestFlight** → **Test Information**: kısa bir açıklama ve geri bildirim e-postası.
+2. **Baban ekipte**: dahili testçiler App Store Connect ekibinden olur. **Users and Access → +** ile babanın Apple kimliği e-postasını davet et, **Apps**'te yalnız Auto Vizyon'u seç, rol olarak TestFlight'ta test edebilen bir rol seç (ör. Marketing). Baban e-postadaki ekip davetini kabul eder.
+3. **Dahili grup**: **TestFlight → Internal Testing → +** ile `Ben` grubunu aç, **Enable automatic distribution** açık olsun. Kendini ve babanı gruba ekle. Apple her işlenen derlemeyi bu gruba kendiliğinden verir; inceleme yok, sınır yok.
 
 ## 4. Babana gönderilecek mesaj
 
 ```text
 Baba, Auto Vizyon uygulaman hazır:
-1. Bu bağlantıya dokun: <TestFlight bağlantısı>
-2. TestFlight yüklü değilse App Store açılır, "Al"a bas, sonra bağlantıya yeniden dokun.
+1. App Store'dan "TestFlight" uygulamasını kur.
+2. E-postana Apple'dan Auto Vizyon test daveti geldi. Davetteki "View in TestFlight"a dokun.
 3. "Kabul Et", sonra "Yükle".
 4. Uygulamayı aç, "Başlayalım"a bas. Az sonra göndereceğim kodu kopyala, uygulamada sağ üstteki dişliye basıp "Yapıştır" de.
 ```
@@ -69,9 +69,10 @@ Kurulum kodu için: [KURULUM.md](KURULUM.md), 3. adım.
 
 ## Güncelleme, 90 gün, yıllık yenileme
 
-- **Yeni sürüm**: kod değişince GitHub yeni derlemeyi yükler. Dahili grup (`Ben`) kendiliğinden alır. "Babam grubuna gönder" işi Apple'ın işlemesini bekler, derlemeyi `Babam` grubuna ekler, "What to Test" notunu yazar, "testçilere otomatik bildir"i açar (Apple onaylar onaylamaz babana gitsin diye; kapalıysa onaylı derleme biri "Notify Testers"a basana kadar bekler) ve gerekiyorsa beta incelemesine gönderir (`tools/testflight.mjs`). Derleme babana gidemeyecekse iş kırmızı biter ve GitHub sana e-posta atar. Apple'ın işlemesi 90 dakikayı geçerse iş sarı uyarıyla biter; derlemeyi takip işi gönderir. Babanın telefonunda TestFlight'ta Auto Vizyon için **Otomatik Güncellemeler** açık olmalı.
-- **Takip**: "TestFlight takip" işi her gün 09:41'de en yeni derlemeye bakar: `Babam` grubunda mı, testçilere açılıyor mu, incelemeye gitti mi. Apple bir seferde tek derleme inceler; bu yüzden bekletilen derlemeyi, öteki inceleme bitince kendisi gönderir. İki durumda kırmızı biter ve günde bir e-posta gelir: babana ulaşan en yeni derleme 45 günü geçtiyse (TestFlight derlemesi 90. günde açılmaz), ya da babana ulaşan derleme yokken yolda da derleme yoksa (ör. Apple reddettiyse).
-- **90 gün**: her TestFlight derlemesi 90 gün geçerli. GitHub her ayın 1'inde ve 15'inde yeni derleme yapıp gönderir; biri aksasa da babanın elindeki derlemenin en az iki ayı kalır. Aynı çalışmada ayrı bir iş depoya `.github/son-yenileme.txt` yazar, çünkü GitHub 60 gün hareketsiz kalan açık depolarda zamanlanmış işleri durdurur. Elle göndermek için: github.com'da depo → **Actions → iPhone TestFlight → Run workflow** (derleme numarası girersen yeni derleme yapmadan sadece onu gönderir).
+- **Yeni sürüm**: kod değişince GitHub yeni derlemeyi yükler. Apple işler işlemez `Ben` grubu (baban da içinde) derlemeyi kendiliğinden alır. "Testçilere ulaştır" işi Apple'ın işlemesini bekler, Türkçe "What to Test" notunu yazar ve derlemenin dahili gruba geçtiğini (`IN_BETA_TESTING`) denetler (`tools/testflight.mjs`). Derleme babana gidemeyecekse iş kırmızı biter ve GitHub sana e-posta atar: ör. ihracat uyumluluğu eksik (`MISSING_EXPORT_COMPLIANCE`), Apple işleyemedi (`PROCESSING_EXCEPTION`), ya da otomatik dağıtımı açık ve içinde testçi olan dahili grup yok. Apple'ın işlemesi 90 dakikayı geçerse iş sarı uyarıyla biter; takip işi ertesi gün bakar. Babanın telefonunda TestFlight'ta Auto Vizyon için **Otomatik Güncellemeler** açık olmalı.
+- **Dış grup (isteğe bağlı)**: TestFlight'ta `Babam` adlı (ya da `TF_GROUP` ile verilen adla) bir dış grup açarsan eski akış geri gelir: iş derlemeyi o gruba ekler, notu yazar, "testçilere otomatik bildir"i açar (Apple onaylar onaylamaz testçilere gitsin diye) ve gerekiyorsa beta incelemesine gönderir. İnceleme için **Test Information**'da **Beta App Review Information** (adın, telefonun, e-postan) dolu olmalı; onay genelde 1-2 gün sürer. Grup yokken bunların hiçbiri yapılmaz.
+- **Takip**: "TestFlight takip" işi her gün 09:41'de en yeni derlemeye bakar: notu yazılmış mı, dahili gruba geçmiş mi (dış grup varsa: grupta mı, testçilere açılıyor mu, incelemeye gitti mi; Apple bir seferde tek derleme inceler, bekletilen derlemeyi öteki inceleme bitince kendisi gönderir). İki durumda kırmızı biter ve günde bir e-posta gelir: babanın kurabildiği en yeni derleme 45 günü geçtiyse (TestFlight derlemesi 90. günde açılmaz), ya da kurabileceği derleme yokken yolda da derleme yoksa (ör. ihracat uyumluluğu eksik ya da Apple reddettiyse).
+- **90 gün**: her TestFlight derlemesi 90 gün geçerli. GitHub her ayın 1'inde ve 15'inde yeni derleme yapıp gönderir; biri aksasa da babanın elindeki derlemenin en az iki ayı kalır. Aynı çalışmada ayrı bir iş depoya `.github/son-yenileme.txt` yazar, çünkü GitHub 60 gün hareketsiz kalan açık depolarda zamanlanmış işleri durdurur. Elle göndermek için: github.com'da depo → **Actions → iPhone TestFlight → Run workflow** (derleme numarası girersen yeni derleme yapmadan sadece onu testçilere ulaştırır).
 - **Kırmızı biten çalışma**: en son iPhone TestFlight çalışmasıysa aç → **Re-run jobs → Re-run failed jobs** ("Re-run all jobs" da olur; yeni derleme `12.2` gibi bir numara alır). Daha eski bir çalışmayı yeniden çalıştırma; Apple eski numaralı derlemeyi reddeder. Onun yerine **Run workflow**.
 - **Zamanlama durduysa** (Actions'ta "This scheduled workflow is disabled"): **Actions → iPhone TestFlight → Enable workflow**, aynısını **TestFlight takip** için de yap.
 - **Bir yıl dolmadan** (29 Ekim 2027): Certificates'ta yeni Apple Distribution sertifikası (`hazirla` aynı anahtarla yeni istek yazar), Profiles'ta profili bu sertifikayla yeniden oluştur, ikisini klasöre koy, `node tools/ios-imza.mjs yukle`. API anahtarının süresi dolmaz.
@@ -85,9 +86,11 @@ Kurulum kodu için: [KURULUM.md](KURULUM.md), 3. adım.
 | `yukle`: "Profil başka bir sertifikayla yapılmış" | Profili düzenle, klasördeki sertifikayı seç, yeniden indir. |
 | `yukle`: "Issuer ID eksik" | `issuer-id.txt` dosyasına App Store Connect'teki Issuer ID'yi yaz. |
 | Derleme "TestFlight'a yükle" adımında düşüyor | Actions günlüğündeki hatayı Claude'a göster. |
-| Bilgi notu: "Apple başka bir derlemeyi inceliyor" | Bir şey yapma; takip işi inceleme bitince gönderir. |
+| "… otomatik dağıtımı açık ve içinde testçi olan dahili grup da yok" | TestFlight → Internal Testing'de `Ben` grubunda **Automatic Distribution**'ı aç, babanı gruba ekle (3. adım). Sonra **Run workflow** ile derleme numarasını gir. |
+| "TestFlight durumu: MISSING_EXPORT_COMPLIANCE" | App Store Connect → TestFlight → derlemede **Manage** → şifreleme sorusuna "None of the algorithms" de. `Info.plist`'teki `ITSAppUsesNonExemptEncryption` bunu normalde önler; Claude'a göster. |
+| Bilgi notu: "Apple başka bir derlemeyi inceliyor" (dış grup) | Bir şey yapma; takip işi inceleme bitince gönderir. |
 | "TestFlight takip" kırmızı: "… gün önce yüklendi" | En son kırmızı iPhone TestFlight çalışmasının günlüğünü Claude'a göster. Acilse **Actions → iPhone TestFlight → Run workflow**. |
-| "TestFlight takip" kırmızı: "derleme yok ve yolda da yok" | App Store Connect → TestFlight → derleme → App Review'da Apple'ın notunu oku (çoğu zaman ret). Notu ve günlüğü Claude'a göster. |
-| "TestFlight durumu: BETA_REJECTED" ya da başka bir durum | App Store Connect → TestFlight'ta derlemeye ve Apple'ın notuna bak, Claude'a göster. |
-| Sarı uyarı: "… dakikada hazır olmadı" | Bir şey yapma; Apple işlemeyi bitirince takip işi gönderir. |
+| "TestFlight takip" kırmızı: "derleme yok ve yolda da yok" | App Store Connect → TestFlight'ta derlemenin durumuna bak (dış grupta App Review'daki Apple notunu oku). Durumu ve günlüğü Claude'a göster. |
+| "TestFlight durumu: …" başka bir durum (ör. `PROCESSING_EXCEPTION`, `BETA_REJECTED`) | App Store Connect → TestFlight'ta derlemeye ve Apple'ın notuna bak, Claude'a göster. |
+| Sarı uyarı: "… dakikada hazır olmadı" | Bir şey yapma; Apple işlemeyi bitirince derleme gruba geçer, takip işi bakar. |
 | TestFlight'ta "Bu derlemenin süresi doldu" | 90 gün dolmuş: yukarıdaki "90 gün" maddesi. |

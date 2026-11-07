@@ -66,22 +66,29 @@ test('a read that keeps failing gives up after a few minutes with Apple\'s error
 });
 
 const b8 = { id: 'b8', attributes: { version: '8' } };
-// One row of the follow-up run's build list: a build and its external-testing details.
-const listed = (version, { uploadedDate = '2026-12-20T10:00:00Z', processingState = 'VALID', external = 'IN_BETA_TESTING', autoNotify = true } = {}) =>
-  ({ version, uploadedDate, processingState, external, autoNotify });
+// One row of the follow-up run's build list: a build and its testing details.
+const listed = (version, {
+  uploadedDate = '2026-12-20T10:00:00Z', processingState = 'VALID', external = 'IN_BETA_TESTING', internal = 'IN_BETA_TESTING', autoNotify = true,
+} = {}) => ({ version, uploadedDate, processingState, external, internal, autoNotify });
+// The father's old external group, and the son's internal group that gets every build by itself
+// (automatic distribution) with the father in it. testers: how many people the pretend group has.
+const BABAM = { id: 'g1', attributes: { name: 'Babam', isInternalGroup: false } };
+const BEN = { id: 'g2', attributes: { name: 'Ben', isInternalGroup: true, hasAccessToAllBuilds: true }, testers: 2 };
 
 // A pretend App Store Connect: answers by route, remembers every call.
-// - external: build 9's beta state, or a list with one entry per read; autoNotify: its release flag;
+// - external, internal: build 9's beta states, or lists with one entry per read; autoNotify: its release flag;
+// - groups: the app's test groups;
 // - inReview: one list of builds per "what is in review" query (the last one repeats);
 // - builds: the follow-up run's list of recent builds, newest first;
 // - refuse: makes a write to that path fail with Apple's status and code.
 function fakeApi({
-  states = ['VALID'], external = 'READY_FOR_BETA_SUBMISSION', autoNotify = true, localizations = [],
-  groups = [{ id: 'g1', attributes: { name: 'Babam', isInternalGroup: false } }],
+  states = ['VALID'], external = 'READY_FOR_BETA_SUBMISSION', internal = 'IN_BETA_TESTING', autoNotify = true, localizations = [],
+  groups = [BABAM],
   inReview = [[]], builds = [listed('9', { external: 'READY_FOR_BETA_SUBMISSION' })], refuse = {},
 } = {}) {
   const calls = [];
   const externals = [].concat(external);
+  const internals = [].concat(internal);
   let poll = 0;
   let reads = 0;
   let reviewQueries = 0;
@@ -103,16 +110,29 @@ function fakeApi({
             attributes: { version: b.version, uploadedDate: b.uploadedDate, processingState: b.processingState },
             relationships: { buildBetaDetail: { data: { type: 'buildBetaDetails', id: `d${b.version}` } } },
           })),
-          included: builds.map((b) => ({ type: 'buildBetaDetails', id: `d${b.version}`, attributes: { externalBuildState: b.external, autoNotifyEnabled: b.autoNotify } })),
+          included: builds.map((b) => ({
+            type: 'buildBetaDetails', id: `d${b.version}`,
+            attributes: { externalBuildState: b.external, internalBuildState: b.internal, autoNotifyEnabled: b.autoNotify },
+          })),
         };
       }
       throw new Error(`unexpected ${method} ${path}`);
     }
     if (path.startsWith('/v1/betaGroups?')) return { data: groups };
+    const members = path.match(/^\/v1\/betaGroups\/(\w+)\/relationships\/betaTesters\?limit=1$/);
+    if (members) {
+      const count = Math.min(groups.find((g) => g.id === members[1])?.testers || 0, 1);
+      return { data: Array.from({ length: count }, (_, i) => ({ type: 'betaTesters', id: `t${i}` })) };
+    }
     if (path === '/v1/builds/b9/betaBuildLocalizations') return { data: localizations };
     if (path === '/v1/builds/b9/buildBetaDetail') {
-      const state = externals[Math.min(reads++, externals.length - 1)];
-      return { data: { type: 'buildBetaDetails', id: 'd9', attributes: { externalBuildState: state, autoNotifyEnabled: autoNotify } } };
+      const at = reads++;
+      const attributes = {
+        externalBuildState: externals[Math.min(at, externals.length - 1)],
+        internalBuildState: internals[Math.min(at, internals.length - 1)],
+        autoNotifyEnabled: autoNotify,
+      };
+      return { data: { type: 'buildBetaDetails', id: 'd9', attributes } };
     }
     if (method === 'POST' || method === 'PATCH') return null;
     throw new Error(`unexpected ${method} ${path}`);
@@ -126,7 +146,8 @@ const run = (api, extra = {}) => distribute({
 });
 
 test('a new build is waited for, added to the father\'s group, given its notes and sent to beta review', async () => {
-  const { api, calls } = fakeApi({ states: [null, 'PROCESSING', 'VALID'] });
+  // The internal group is there too; the external group decides the way.
+  const { api, calls } = fakeApi({ states: [null, 'PROCESSING', 'VALID'], groups: [BEN, BABAM] });
   const result = await run(api);
   assert.deepEqual(result, { buildId: 'b9', submitted: true, state: 'READY_FOR_BETA_SUBMISSION' });
   const polls = calls.filter((c) => c.path.includes('filter[version]='));
@@ -147,6 +168,7 @@ test('a new build is waited for, added to the father\'s group, given its notes a
   const submit = calls.find((c) => c.path === '/v1/betaAppReviewSubmissions');
   assert.deepEqual(submit.body, { data: { type: 'betaAppReviewSubmissions', relationships: { build: { data: { type: 'builds', id: 'b9' } } } } });
   assert.ok(!calls.some((c) => c.method === 'PATCH' || c.path === '/v1/buildBetaNotifications'), 'release flag already on');
+  assert.ok(!calls.some((c) => c.path.includes('/betaTesters')), 'internal testers are not looked at');
 });
 
 test('automatic release to testers is switched on before the build is reviewed', async () => {
@@ -261,10 +283,8 @@ test('a refused submission is decided by Apple\'s state afterwards, not by the e
   await assert.rejects(run(other.api), (e) => e.code === 'ENTITY_UNPROCESSABLE.BETA_CONTRACT_MISSING');
 });
 
-test('a failed build, a missing group or a build that never gets ready stops with a clear message', async () => {
+test('a failed build or a build that never gets ready stops with a clear message', async () => {
   await assert.rejects(run(fakeApi({ states: ['INVALID'] }).api), /9.*INVALID/);
-  await assert.rejects(run(fakeApi({ groups: [] }).api), /Babam/);
-  await assert.rejects(run(fakeApi({ groups: [{ id: 'g0', attributes: { name: 'Babam', isInternalGroup: true } }] }).api), /Babam/);
   let t = 0;
   await assert.rejects(run(fakeApi({ states: [null] }).api, { now: () => (t += 60_000), timeoutMs: 5 * 60_000 }),
     (e) => /9.*dakika/.test(e.message) && e.late === true && e.state === undefined);
@@ -272,6 +292,56 @@ test('a failed build, a missing group or a build that never gets ready stops wit
   // Still processing at the deadline: the upload's run may let the follow-up run finish the job.
   await assert.rejects(run(fakeApi({ external: 'PROCESSING' }).api, { now: () => (t += 60_000), timeoutMs: 5 * 60_000 }),
     (e) => /9.*dakika.*PROCESSING/.test(e.message) && e.late === true && e.state === 'PROCESSING');
+});
+
+// The father as an internal tester: no external group, the internal group gets every build by itself.
+const ONLY_INTERNAL = [BEN, { id: 'g3', attributes: { name: 'Elle', isInternalGroup: true, hasAccessToAllBuilds: false }, testers: 1 }];
+const writes = (calls) => calls.filter((c) => c.method !== 'GET').map((c) => c.path);
+
+test('without the external group, the build gets its note and counts once Apple hands it to the internal group', async () => {
+  const { api, calls } = fakeApi({ states: [null, 'PROCESSING', 'VALID'], groups: ONLY_INTERNAL, internal: ['PROCESSING', 'READY_FOR_BETA_TESTING', 'IN_BETA_TESTING'] });
+  assert.deepEqual(await run(api), { buildId: 'b9', submitted: false, state: 'IN_BETA_TESTING', internal: true, groups: ['Ben'] });
+  assert.deepEqual(writes(calls), ['/v1/betaBuildLocalizations'], 'only the note: no group, release flag or review');
+  assert.deepEqual(calls.find((c) => c.method === 'POST').body.data.attributes, { locale: 'tr', whatsNew: 'Yeni sürüm' });
+  assert.equal(calls.filter((c) => c.path === '/v1/builds/b9/buildBetaDetail').length, 3, 'waits while Apple prepares it');
+  const note = calls.findIndex((c) => c.method === 'POST');
+  assert.ok(note < calls.findIndex((c) => c.path === '/v1/builds/b9/buildBetaDetail'), 'the note comes right after processing');
+  assert.ok(calls.some((c) => c.path === '/v1/betaGroups/g2/relationships/betaTesters?limit=1'));
+  assert.ok(!calls.some((c) => c.path.includes('/v1/betaGroups/g3/')), 'a group without automatic distribution does not count');
+  // A note that is already there is kept.
+  const kept = fakeApi({ groups: ONLY_INTERNAL, localizations: [{ id: 'l1', attributes: { locale: 'tr', whatsNew: 'Eski not' } }] });
+  assert.equal((await run(kept.api)).internal, true);
+  assert.deepEqual(writes(kept.calls), []);
+});
+
+test('without the external group, a build that cannot reach the internal testers stops the run with its state', async () => {
+  for (const state of ['MISSING_EXPORT_COMPLIANCE', 'PROCESSING_EXCEPTION', 'EXPIRED']) {
+    const { api, calls } = fakeApi({ groups: ONLY_INTERNAL, internal: state });
+    await assert.rejects(run(api), (e) => new RegExp(`9.*dahili.*${state}`).test(e.message) && !e.late, state);
+    assert.deepEqual(writes(calls), ['/v1/betaBuildLocalizations'], `${state}: nothing but the note`);
+  }
+});
+
+test('without the external group, the run stops when no internal group gets builds by itself with a tester in it', async () => {
+  const cases = {
+    'no group at all': [],
+    'automatic group without testers': [{ ...BEN, testers: 0 }],
+    'testers only in a group without automatic distribution': [{ ...BEN, attributes: { ...BEN.attributes, hasAccessToAllBuilds: false } }],
+    'a "Babam" group that is internal and not automatic': [{ id: 'g0', attributes: { name: 'Babam', isInternalGroup: true }, testers: 1 }],
+  };
+  for (const [name, groups] of Object.entries(cases)) {
+    const { api, calls } = fakeApi({ groups });
+    await assert.rejects(run(api), (e) => /9.*"Babam".*dahili grup.*Automatic Distribution/.test(e.message) && !e.late, name);
+    assert.ok(!calls.some((c) => c.path.endsWith('/buildBetaDetail')), `${name}: decided without waiting`);
+  }
+});
+
+test('without the external group, slow processing ends as a late warning with its state', async () => {
+  for (const state of ['PROCESSING', 'IN_EXPORT_COMPLIANCE_REVIEW', 'READY_FOR_BETA_TESTING']) {
+    let t = 0;
+    await assert.rejects(run(fakeApi({ groups: ONLY_INTERNAL, internal: state }).api, { now: () => (t += 60_000), timeoutMs: 5 * 60_000 }),
+      (e) => new RegExp(`9.*dakika.*${state}`).test(e.message) && e.late === true && e.state === state, state);
+  }
 });
 
 // The follow-up run (testflight-takip.yml), once a day.
@@ -347,6 +417,57 @@ test('a problem with the newest build is only a warning while the father has a r
   assert.ok(logs.some((m) => /^::warning::.*BETA_REJECTED/.test(m)), logs.join('\n'));
   assert.equal(report.result, undefined);
   assert.equal(report.released, '8');
+});
+
+test('without the external group, the follow-up run judges what Apple handed to the internal group', async () => {
+  const { api, calls } = fakeApi({ groups: ONLY_INTERNAL, builds: [
+    listed('10', { processingState: 'PROCESSING', internal: 'PROCESSING', uploadedDate: '2026-12-30T23:00:00Z' }),
+    listed('9', { external: 'READY_FOR_BETA_SUBMISSION', uploadedDate: '2026-12-29T10:00:00Z' }),
+    listed('8', { uploadedDate: '2026-12-20T10:00:00Z' }),
+  ] });
+  const report = await look(api);
+  assert.equal(report.internal, true);
+  assert.deepEqual(report.recent, ['10 PROCESSING', '9 IN_BETA_TESTING', '8 IN_BETA_TESTING']);
+  assert.equal(report.result.internal, true);
+  assert.equal(report.released, '9');
+  assert.equal(report.days, 1);
+  assert.equal(report.inReview, undefined);
+  assert.ok(!calls.some((c) => c.path.includes('betaReviewState')), 'no review to look at');
+  assert.ok(!calls.some((c) => c.path === '/v1/betaAppReviewSubmissions' || c.path.includes('/relationships/builds')));
+
+  // Handed over during this run: the newest build is the one he has now.
+  const justNow = fakeApi({ groups: ONLY_INTERNAL, internal: ['READY_FOR_BETA_TESTING', 'IN_BETA_TESTING'], builds: [
+    listed('9', { internal: 'READY_FOR_BETA_TESTING', uploadedDate: '2026-12-30T10:00:00Z' }),
+    listed('8', { uploadedDate: '2026-10-01T10:00:00Z' }),
+  ] });
+  assert.equal((await look(justNow.api)).released, '9');
+});
+
+test('without the external group, the follow-up run raises the alarm when the newest internal build is 46 days or more old', async () => {
+  const aged = (uploadedDate) => fakeApi({ groups: ONLY_INTERNAL, builds: [listed('9', { external: 'BETA_REJECTED', uploadedDate })] }).api;
+  await assert.rejects(look(aged('2026-11-14T00:00:00Z')), /9.*47 gün/);
+  assert.equal((await look(aged('2026-11-15T06:30:00Z'))).days, 45);
+  // An external state means nothing without the external group.
+  const old = fakeApi({ groups: ONLY_INTERNAL, internal: 'MISSING_EXPORT_COMPLIANCE', builds: [
+    listed('9', { internal: 'MISSING_EXPORT_COMPLIANCE', external: 'IN_BETA_TESTING', uploadedDate: '2026-12-29T10:00:00Z' }),
+    listed('8', { internal: 'IN_BETA_TESTING', uploadedDate: '2026-11-01T10:00:00Z' }),
+  ] });
+  await assert.rejects(look(old.api), /\(8\) 59 gün.*9.*MISSING_EXPORT_COMPLIANCE/);
+});
+
+test('without the external group and nothing open to the father, the follow-up run is green only while a build is on its way', async () => {
+  const stuck = listed('9', { internal: 'MISSING_EXPORT_COMPLIANCE', uploadedDate: '2026-12-20T10:00:00Z' });
+  await assert.rejects(look(fakeApi({ groups: ONLY_INTERNAL, internal: 'MISSING_EXPORT_COMPLIANCE', builds: [stuck] }).api),
+    /yolda.*9.*MISSING_EXPORT_COMPLIANCE.*dahili test durumu/);
+  const fresh = listed('10', { processingState: 'PROCESSING', internal: 'PROCESSING', uploadedDate: '2026-12-30T20:00:00Z' });
+  await look(fakeApi({ groups: ONLY_INTERNAL, internal: 'MISSING_EXPORT_COMPLIANCE', builds: [fresh, stuck] }).api);
+  // Processed today, Apple still preparing it for the group past the run's ten minutes.
+  let t = NOW;
+  const slow = fakeApi({ groups: ONLY_INTERNAL, internal: 'READY_FOR_BETA_TESTING', builds: [listed('9', { internal: 'READY_FOR_BETA_TESTING', uploadedDate: '2026-12-30T20:00:00Z' })] });
+  const report = await look(slow.api, { now: () => (t += 60_000) });
+  assert.match(report.problem, /9.*dakika.*READY_FOR_BETA_TESTING/);
+  // No group to hand it to: a problem, and red once nothing is on its way.
+  await assert.rejects(look(fakeApi({ groups: [], builds: [stuck] }).api), /yolda.*Automatic Distribution/);
 });
 
 test('no valid build left at all stops the follow-up run', async () => {

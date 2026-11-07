@@ -1,5 +1,7 @@
-// After a build reaches App Store Connect: wait until Apple has processed it, put it in the father's
-// external TestFlight group with a "what to test" note, and send it to beta review when it needs it.
+// After a build reaches App Store Connect: wait until Apple has processed it, give it a "what to test"
+// note and make sure it reaches the father. He is an internal tester: an internal group with automatic
+// distribution gets every processed build, with no beta review. If an external group named TF_GROUP
+// exists, the build goes to that group as before and to beta review when it needs it.
 // Anything that keeps the build from reaching him fails the run, so GitHub sends an email.
 // CI: node tools/testflight.mjs <build number>   after an upload (ios.yml)
 //     node tools/testflight.mjs --takip           once a day (testflight-takip.yml)
@@ -15,6 +17,10 @@ const BEFORE_APPROVAL = new Set([READY, 'WAITING_FOR_BETA_REVIEW', 'IN_BETA_REVI
 const APPROVED = new Set(['BETA_APPROVED', 'READY_FOR_BETA_TESTING']);
 // External states in which the build is in review, approved, or already with the testers.
 const ON_ITS_WAY = new Set(['WAITING_FOR_BETA_REVIEW', 'IN_BETA_REVIEW', ...APPROVED, TESTING]);
+// Internal states that turn into IN_BETA_TESTING without anyone's help: Apple is still processing the
+// build, checking its export compliance papers, or about to hand it to the automatic group. The rest
+// (MISSING_EXPORT_COMPLIANCE, PROCESSING_EXCEPTION, EXPIRED) never reach the testers by themselves.
+const INTERNAL_ON_ITS_WAY = new Set(['PROCESSING', 'IN_EXPORT_COMPLIANCE_REVIEW', 'READY_FOR_BETA_TESTING']);
 const RETRY_WAITS = [10_000, 30_000, 60_000, 120_000];
 const DAY = 86_400_000;
 // A TestFlight build stops opening 90 days after upload. Alarm well before that, and before GitHub
@@ -75,6 +81,40 @@ async function findApp(api, bundleId) {
 const inReview = async (api, appId) => (await api('GET', `/v1/builds?filter[app]=${appId}`
   + '&filter[betaAppReviewSubmission.betaReviewState]=WAITING_FOR_REVIEW,IN_REVIEW&filter[expired]=false&limit=1')).data[0];
 
+// The app's test groups, and among them the external group with the given name, if there is one.
+async function findGroups(api, appId, groupName) {
+  const all = (await api('GET', `/v1/betaGroups?filter[app]=${appId}&limit=200`)).data;
+  return { all, external: all.find((g) => g.attributes.name === groupName && !g.attributes.isInternalGroup) };
+}
+
+// Names of the internal groups that get every build by themselves (automatic distribution) and have
+// at least one tester: the people an internal build reaches without anyone adding it by hand.
+async function internalAudience(api, groups) {
+  const names = [];
+  for (const g of groups.filter((x) => x.attributes.isInternalGroup && x.attributes.hasAccessToAllBuilds === true)) {
+    if ((await api('GET', `/v1/betaGroups/${g.id}/relationships/betaTesters?limit=1`)).data.length) names.push(g.attributes.name);
+  }
+  return names;
+}
+
+// "What to Test" in the build's language: written once, an empty one filled in, a written one kept.
+async function writeNotes(api, buildId, locale, whatsNew) {
+  const notes = async () => (await api('GET', `/v1/builds/${buildId}/betaBuildLocalizations`)).data;
+  const mine = (await notes()).find((n) => n.attributes.locale === locale);
+  if (!mine) {
+    try {
+      await api('POST', '/v1/betaBuildLocalizations', {
+        data: { type: 'betaBuildLocalizations', attributes: { locale, whatsNew }, relationships: { build: { data: { type: 'builds', id: buildId } } } },
+      });
+    } catch (e) {
+      // The upload's own run and the follow-up run can reach the same build together.
+      if (!(await notes()).some((n) => n.attributes.locale === locale)) throw e;
+    }
+  } else if (!mine.attributes.whatsNew) {
+    await api('PATCH', `/v1/betaBuildLocalizations/${mine.id}`, { data: { type: 'betaBuildLocalizations', id: mine.id, attributes: { whatsNew } } });
+  }
+}
+
 export async function distribute({
   api, bundleId, buildNumber, groupName, whatsNew, locale = 'tr',
   sleep = wait, now = Date.now, timeoutMs = 90 * 60_000, pollMs = 60_000, log = console.log,
@@ -101,8 +141,31 @@ export async function distribute({
     await sleep(pollMs);
   }
 
-  // External testing has its own processing step, which can finish after the build's.
   const betaDetail = async () => (await api('GET', `/v1/builds/${build.id}/buildBetaDetail`)).data;
+  const { all: groups, external: group } = await findGroups(api, app.id, groupName);
+  if (!group) {
+    // No external group: the father is an internal tester. Apple hands the build to the internal group
+    // with automatic distribution by itself, with no beta review; this run writes the note and checks
+    // that the build gets there.
+    await writeNotes(api, build.id, locale, whatsNew);
+    const audience = await internalAudience(api, groups);
+    if (!audience.length) {
+      throw new Error(`Derleme ${buildNumber} testçilere gidemez: TestFlight'ta "${groupName}" adlı dış grup yok, otomatik dağıtımı açık ve `
+        + 'içinde testçi olan dahili grup da yok. App Store Connect → TestFlight → Internal Testing\'de grubun Automatic Distribution\'ını aç, babanı gruba ekle.');
+    }
+    let inside;
+    while (INTERNAL_ON_ITS_WAY.has((inside = (await betaDetail()).attributes.internalBuildState))) {
+      giveUpIfLate(inside);
+      log(`Derleme ${buildNumber}: dahili test için hazırlanıyor (${inside}), bekleniyor`);
+      await sleep(pollMs);
+    }
+    if (inside !== TESTING) {
+      throw new Error(`Derleme ${buildNumber} dahili testçilere gidemez, TestFlight durumu: ${inside}. App Store Connect → TestFlight'ta derlemeye bak.`);
+    }
+    return { buildId: build.id, submitted: false, state: inside, internal: true, groups: audience };
+  }
+
+  // External testing has its own processing step, which can finish after the build's.
   let detail;
   while ((detail = await betaDetail()).attributes.externalBuildState === 'PROCESSING') {
     giveUpIfLate('PROCESSING');
@@ -121,27 +184,11 @@ export async function distribute({
     log(`Derleme ${buildNumber}: testçilere otomatik bildirim açıldı.`);
   }
 
-  const groups = (await api('GET', `/v1/betaGroups?filter[app]=${app.id}&filter[name]=${encodeURIComponent(groupName)}`)).data;
-  const group = groups.find((g) => g.attributes.name === groupName && !g.attributes.isInternalGroup);
-  if (!group) throw new Error(`TestFlight'ta "${groupName}" adlı dış test grubu yok.`);
   // Adding a build that is already in the group succeeds, so any refusal here is a real one.
   await api('POST', `/v1/betaGroups/${group.id}/relationships/builds`, { data: [{ type: 'builds', id: build.id }] });
 
   // External testers see "What to Test"; Apple wants it before review.
-  const notes = async () => (await api('GET', `/v1/builds/${build.id}/betaBuildLocalizations`)).data;
-  const mine = (await notes()).find((n) => n.attributes.locale === locale);
-  if (!mine) {
-    try {
-      await api('POST', '/v1/betaBuildLocalizations', {
-        data: { type: 'betaBuildLocalizations', attributes: { locale, whatsNew }, relationships: { build: { data: { type: 'builds', id: build.id } } } },
-      });
-    } catch (e) {
-      // The upload's own run and the follow-up run can reach the same build together.
-      if (!(await notes()).some((n) => n.attributes.locale === locale)) throw e;
-    }
-  } else if (!mine.attributes.whatsNew) {
-    await api('PATCH', `/v1/betaBuildLocalizations/${mine.id}`, { data: { type: 'betaBuildLocalizations', id: mine.id, attributes: { whatsNew } } });
-  }
+  await writeNotes(api, build.id, locale, whatsNew);
 
   // Approved before the flag was on: hand it to the testers now.
   if (APPROVED.has(state) && !released) {
@@ -177,10 +224,11 @@ export async function distribute({
   return { buildId: build.id, submitted: true, state };
 }
 
-// The follow-up run: the newest valid build goes to the father's group and, once nothing else is in
-// review, to beta review. Problems with that build are only warnings here (the upload's own run
-// reports them loudly). It fails, so GitHub emails, when the newest build released to his group is
-// getting old, or when none is released and none is on its way.
+// The follow-up run: the newest valid build gets its note and goes on to the father. With the external
+// group it is added there and, once nothing else is in review, sent to beta review; without it, it is
+// checked against the internal group's automatic distribution. Problems with that build are only
+// warnings here (the upload's own run reports them loudly). It fails, so GitHub emails, when the newest
+// build he can install is getting old, or when none is installable and none is on its way.
 export async function lookAfter({ api, bundleId, groupName, whatsNew, now = Date.now, log = console.log, ...rest }) {
   const app = await findApp(api, bundleId);
   const list = await api('GET', `/v1/builds?filter[app]=${app.id}&filter[processingState]=PROCESSING,VALID&filter[expired]=false`
@@ -194,9 +242,14 @@ export async function lookAfter({ api, bundleId, groupName, whatsNew, now = Date
   }));
   const newest = builds.find((b) => !b.processing);
   if (!newest) throw new Error('TestFlight\'ta geçerli derleme yok. Actions → iPhone TestFlight → Run workflow ile yeni derleme yap.');
+  // Without the external group the father is an internal tester: what counts is the internal state.
+  const internal = !(await findGroups(api, app.id, groupName)).external;
   const report = {
     newest: newest.version,
-    recent: builds.slice(0, 5).map((b) => `${b.version} ${b.beta.externalBuildState || '?'}${b.beta.autoNotifyEnabled ? ' (otomatik bildirim)' : ''}`),
+    internal,
+    recent: builds.slice(0, 5).map((b) => (internal
+      ? `${b.version} ${b.beta.internalBuildState || '?'}`
+      : `${b.version} ${b.beta.externalBuildState || '?'}${b.beta.autoNotifyEnabled ? ' (otomatik bildirim)' : ''}`)),
   };
 
   try {
@@ -207,11 +260,16 @@ export async function lookAfter({ api, bundleId, groupName, whatsNew, now = Date
     report.problem = e.message;
     log(`::warning::${e.message}`);
   }
-  report.inReview = (await inReview(api, app.id))?.attributes.version;
+  // Internal testing has no review to wait for.
+  if (!internal) report.inReview = (await inReview(api, app.id))?.attributes.version;
 
-  // What he can install: builds Apple has handed to the testers, or approved with the release flag on.
-  const released = builds.find((b) => b.beta.externalBuildState === TESTING
-    || (APPROVED.has(b.beta.externalBuildState) && b.beta.autoNotifyEnabled === true));
+  // What he can install. Internal: builds Apple has handed to the internal group, the newest one too
+  // when it got there during this run. External: builds handed to the testers, or approved with the
+  // release flag on.
+  const released = internal
+    ? (report.result?.internal ? newest : builds.find((b) => b.beta.internalBuildState === TESTING))
+    : builds.find((b) => b.beta.externalBuildState === TESTING
+      || (APPROVED.has(b.beta.externalBuildState) && b.beta.autoNotifyEnabled === true));
   if (released) {
     const days = Math.floor((now() - released.uploaded) / DAY);
     if (days > MAX_AGE_DAYS) {
@@ -220,11 +278,13 @@ export async function lookAfter({ api, bundleId, groupName, whatsNew, now = Date
     }
     return { ...report, released: released.version, days };
   }
-  // Nothing he can install: fine only while a build is on its way to him.
-  const uploading = builds.some((b) => b.processing && now() - b.uploaded < DAY);
+  // Nothing he can install: fine only while a build is on its way to him. Internally that is also a
+  // processed build of the last day that Apple has not handed to the group yet.
+  const uploading = builds.some((b) => now() - b.uploaded < DAY
+    && (b.processing || (internal && INTERNAL_ON_ITS_WAY.has(b.beta.internalBuildState))));
   if (report.result || report.inReview || uploading) return report;
   throw new Error(`Babanın kurabileceği derleme yok ve yolda da yok. ${report.problem || `En yeni derleme: ${newest.version}.`} `
-    + 'App Store Connect → TestFlight\'ta Apple\'ın notuna bak.');
+    + (internal ? 'App Store Connect → TestFlight\'ta derlemenin dahili test durumuna bak.' : 'App Store Connect → TestFlight\'ta Apple\'ın notuna bak.'));
 }
 
 async function main() {
@@ -236,7 +296,9 @@ async function main() {
   const p8 = Buffer.from(p8b64, 'base64').toString('utf8');
   const api = ascClient({ getToken: () => makeJwt({ keyId, issuerId, p8 }) });
   const say = (r, n) => {
-    if (r.waitingFor) {
+    if (r.internal) {
+      console.log(`Derleme ${n} dahili gruptaki testçilere açık (${r.groups.map((g) => `"${g}"`).join(', ')}); dahili testte Apple incelemesi yok.`);
+    } else if (r.waitingFor) {
       console.log(`::notice::Derleme ${n} "${groupName}" grubunda. Apple başka bir derlemeyi (${r.waitingFor}) inceliyor; `
         + 'o bitince TestFlight takip işi bunu incelemeye gönderir.');
     } else if (r.notified) {
@@ -252,7 +314,7 @@ async function main() {
     const r = await lookAfter({ api, bundleId: 'com.autovizyon.app', groupName, whatsNew: WHATS_NEW });
     console.log(`Son derlemeler: ${r.recent.join(', ')}`);
     if (r.result) say(r.result, r.newest);
-    console.log(`İncelemede: ${r.inReview ? `derleme ${r.inReview}` : 'yok'}. `
+    console.log((r.internal ? '' : `İncelemede: ${r.inReview ? `derleme ${r.inReview}` : 'yok'}. `)
       + (r.released ? `Babana ulaşan en yeni derleme ${r.released}, ${r.days} günlük.` : 'Babana ulaşan derleme henüz yok.'));
     return;
   }
@@ -261,7 +323,7 @@ async function main() {
   } catch (e) {
     // Uploaded and visible, only slow: the follow-up run sends it on once Apple is done with it.
     if (!(e.late && e.state)) throw e;
-    console.log(`::warning::${e.message} TestFlight takip işi, Apple işlemeyi bitirince derlemeyi gönderir.`);
+    console.log(`::warning::${e.message} Apple işlemeyi bitirince TestFlight takip işi derlemenin testçilere ulaşmasına bakar.`);
   }
 }
 
