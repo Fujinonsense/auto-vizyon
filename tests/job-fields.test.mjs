@@ -79,6 +79,20 @@ test('an amount typed before a category is picked: says so under the chips and g
   assert.deepEqual(ui.read().costs, [], 'nothing made up');
 });
 
+test('Kaydet keeps the line in sight above the toast: the chips go up with it under them, a field to fill to the middle', () => {
+  const ui = fields();
+  const c = costs(ui.el);
+  c.open();
+  type(c.amount, '5000');
+  ui.costDraftProblem();
+  assert.equal(c.form.querySelector('.cost-cats').scrolledIntoView, 1, 'the chips, the line right under them');
+  assert.equal(c.firstChip.scrolledIntoView, 0, 'not the first chip alone, which leaves the line low on a small phone');
+  assert.equal(active(), c.firstChip);
+  c.pick('diger');
+  ui.costDraftProblem();
+  assert.equal(c.whatFor.scrolledIntoView, 1, 'the field to fill, the line just above it');
+});
+
 test('"Diğer" with an amount but no "Ne için?": says so and goes to it', () => {
   const ui = fields();
   const c = costs(ui.el);

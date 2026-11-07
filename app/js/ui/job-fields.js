@@ -199,11 +199,15 @@ export function jobFields(job = {}, { vatRate = 20, vatMode = 'haric' } = {}) {
     h('div', { class: 'field cost-box' }, h('span', {}, 'Maliyet'), costList, costSum, openBtn, costForm));
   // Asked by Kaydet before saving: a cost left half typed is never dropped quietly. Says what is missing
   // under the chips, puts the cursor there and returns the same words for a toast ('' when all is well).
+  // The line has to stay in sight while the toast shows near the bottom: with no kind picked the chips,
+  // several rows on a small phone, go to the top with the line right under them; a field to fill goes
+  // to the middle, the line just above it.
   function costDraftProblem() {
     const problem = draftProblem();
     showProblem(problem);
     if (!problem) return '';
-    problem.at.scrollIntoView({ block: 'center' });
+    if (catChips.contains(problem.at)) catChips.scrollIntoView({ block: 'start' });
+    else problem.at.scrollIntoView({ block: 'center' });
     problem.at.focus({ preventScroll: true });
     return problem.text;
   }

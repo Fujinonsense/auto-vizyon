@@ -72,5 +72,46 @@ test('next to a section title that keeps its line ("Tutanak A"), the copy button
   const btn = rule('.section-head .btn');
   assert.equal(btn['white-space'], 'normal');
   assert.equal(btn['text-align'], 'center');
-  assert.ok(Number(btn['line-height']) <= 1.25, 'two lines fit the 44px button');
+  assert.ok(Number(btn['line-height']) <= 1.25, 'two lines fit the 48px button');
+  assert.ok(px(btn['min-height']) >= 48, 'a 48px tap target');
+  // At 320 px the label wraps: the icon keeps its size and the two lines sit right next to it.
+  assert.equal(rule('.section-head .btn svg').flex, 'none');
+  assert.equal(narrow(359)['.section-head .btn > span']?.width, 'min-content');
+});
+
+// The rules of an @media (max-width: N px) block of app.css, by selector.
+function narrow(maxWidth) {
+  const at = css.indexOf(`@media (max-width: ${maxWidth}px) {`);
+  assert.ok(at >= 0, `@media (max-width: ${maxWidth}px) is in app.css`);
+  let depth = 0;
+  let end = css.indexOf('{', at);
+  for (let i = end; i < css.length; i++) {
+    if (css[i] === '{') depth++;
+    if (css[i] === '}' && --depth === 0) { end = i; break; }
+  }
+  const body = css.slice(css.indexOf('{', at) + 1, end);
+  return Object.fromEntries([...body.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(([, sel, decl]) => [sel.replace(/\/\*[\s\S]*?\*\//g, '').trim(), declarations(decl)]));
+}
+
+test('below 375 px the camera bar keeps to the screen after the first shot; wider screens keep their bar', () => {
+  const small = narrow(374);
+  assert.equal(small['.cam-bar']['grid-template-columns'], 'minmax(0, 1fr) auto minmax(0, 1fr)', 'a side never widens the bar');
+  assert.equal(small['.cam-side']['white-space'], 'normal', 'a label that does not fit wraps in its own half');
+  assert.equal(small['.cam-side svg'].flex, 'none');
+  // 320 px: "Galeri" (icon, gap, word) and "Oku (1)" with its arrow at their tightest, the shutter in between.
+  const pad = px(small['.cam-bar']['padding-left']) + px(small['.cam-bar']['padding-right']);
+  const side = (content) => 2 * px(small['.cam-side'].padding.split(' ')[1]) + content;
+  assert.ok(pad + 2 * px(small['.cam-bar'].gap) + 80 + side(22 + 4 + 46) + side(55 + 4 + 20) <= 320);
+  // Unchanged above it.
+  assert.equal(rule('.cam-bar')['grid-template-columns'], '1fr auto 1fr');
+  assert.equal(rule('.cam-bar').padding, '14px 16px 18px');
+  assert.equal(rule('.cam-side')['white-space'], 'nowrap');
+  assert.equal(rule('.cam-side').padding, '0 18px');
+  assert.ok(px(rule('.cam-side')['min-height']) >= 48 && px(rule('.cam-shutter').width) === 80, 'tap targets stay big');
+});
+
+test('the cost kind chips come up under the top bar (and the notch) when Kaydet points at them', () => {
+  const margin = rule('.cost-cats')['scroll-margin-top'];
+  assert.match(margin, /env\(safe-area-inset-top\)/);
+  assert.ok(px(/(\d+)px/.exec(margin)[1]) >= 64, 'below the 64px top bar');
 });

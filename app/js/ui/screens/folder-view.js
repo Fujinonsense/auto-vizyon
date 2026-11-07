@@ -123,7 +123,7 @@ export async function folderView({ id }, ctx) {
     if (!sections.some((s) => s.kind.startsWith('tutanak'))) missing.push({ kind: 'tutanak', title: KINDS.tutanak.label });
     const infoSecs = sections.filter((s) => s.rows.some((r) => r.value)).map((s) => h('section', { class: 'card section' },
       h('div', { class: 'section-head' }, h('h3', {}, s.title),
-        h('button', { class: 'btn small ghost', type: 'button', onclick: () => copyText(sectionCopyText(s.rows), `${s.title} bilgileri`) }, icon('copy', 18), 'Tümünü kopyala')),
+        h('button', { class: 'btn small ghost', type: 'button', onclick: () => copyText(sectionCopyText(s.rows), `${s.title} bilgileri`) }, icon('copy', 18), h('span', {}, 'Tümünü kopyala'))),
       s.rows.filter((r) => r.value).map((r) => copyRow(r.label, r.value, { unclear: (folder.unclear || []).includes(r.path) }))));
     const addDocs = missing.length && h('div', { class: 'add-docs' },
       h('span', { class: 'muted small' }, 'Belge ekle'),
@@ -133,7 +133,7 @@ export async function folderView({ id }, ctx) {
     // Photos
     const photoSec = h('section', { class: 'card section' },
       h('div', { class: 'section-head' }, h('h3', {}, 'Fotoğraflar'),
-        photos.length > 0 && h('button', { class: 'btn small ghost', type: 'button', onclick: () => sharePhotos(gallery, folder) }, icon('share', 18), 'Hepsini paylaş')),
+        photos.length > 0 && h('button', { class: 'btn small ghost', type: 'button', onclick: () => sharePhotos(gallery, folder) }, icon('share', 18), h('span', {}, 'Hepsini paylaş'))),
       GROUPS.map(([label, kinds]) => {
         const ps = photos.filter((p) => kinds.includes(p.kind));
         return ps.length > 0 && h('div', { class: 'pgroup' }, h('span', { class: 'muted small' }, label),

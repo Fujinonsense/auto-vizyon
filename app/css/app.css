@@ -432,8 +432,13 @@ button.stat { cursor: pointer; }
 .section { padding: 8px 16px 14px; }
 .section-head { display: flex; align-items: center; gap: 8px; min-height: 48px; }
 .section-head h3 { flex: 1; }
-/* On a narrow phone the title keeps its line ("Tutanak A") and the button next to it wraps its own words. */
-.section-head .btn { white-space: normal; line-height: 1.2; text-align: center; }
+/* On a narrow phone the title keeps its line ("Tutanak A") and the button next to it wraps its own words,
+   its icon at full size right next to them: a wrapped label as wide as its longer word. */
+.section-head .btn { min-height: 48px; white-space: normal; line-height: 1.2; text-align: center; }
+.section-head .btn svg { flex: none; }
+@media (max-width: 359px) {
+  .section-head .btn > span { width: min-content; }
+}
 
 .copyrow { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 4px; min-height: 56px; border-top: 1px solid var(--line); }
 .copyrow:first-of-type { border-top: 0; }
@@ -707,6 +712,9 @@ button.photo-main { display: grid; place-content: center; justify-items: center;
 .cost-form { display: grid; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); }
 .chips.wrap.cost-cats .chip { min-height: 48px; font-size: 15px; }
 .cost-hint { font-size: 15px; font-weight: 600; color: var(--due); }
+/* Kaydet with no kind picked brings the chips up to just under the top bar (or the sheet's title), so the
+   line under them stays above the red toast near the bottom on a small phone. */
+.cost-cats { scroll-margin-top: calc(env(safe-area-inset-top) + 84px); }
 
 .switch { display: flex; align-items: center; justify-content: space-between; min-height: var(--tap); font-weight: 600; cursor: pointer; }
 .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
@@ -987,6 +995,13 @@ button.photo-main { display: grid; place-content: center; justify-items: center;
   transition: transform 0.12s ease-out;
 }
 .cam-shutter:active { transform: scale(0.9); }
+/* Below 375 px "Galeri", the shutter and "Oku (1)" no longer fit side by side at full width once the first
+   photo is taken: they move closer together, and a label that still does not fit wraps in its own half. */
+@media (max-width: 374px) {
+  .cam-bar { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; padding-left: 10px; padding-right: 10px; }
+  .cam-side { gap: 4px; padding: 0 12px; white-space: normal; text-align: center; line-height: 1.15; }
+  .cam-side svg { flex: none; }
+}
 
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
