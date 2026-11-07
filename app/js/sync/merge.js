@@ -11,6 +11,8 @@ export function mergeRemote(local, remote, pendingIds) {
   const jobs = [];
   for (const r of remote.jobs || []) {
     if (!r.id || pendingIds.has(r.id)) continue;
+    // A job of a folder deleted on the phone, while that deletion is still on its way to the sheet.
+    if (pendingIds.has(r.folderId) && !local.folders.has(r.folderId)) continue;
     const { remoteStamp, plate, name, phone, ...fields } = r;
     const mine = local.jobs.get(r.id);
     if (mine && JOB_FIELDS.every((k) => !(k in fields) || sameJobField(k, fields[k], mine[k]))) continue;

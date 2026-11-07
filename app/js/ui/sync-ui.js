@@ -52,7 +52,8 @@ function googleCard({ settings, rerender }) {
     class: 'btn small primary', type: 'button',
     onclick: async () => {
       syncBtn.replaceChildren(spinner(18), 'Eşitleniyor');
-      await syncNow();
+      // Writes the sheet turned down are tried again right away, not after their wait.
+      await syncNow({ retryNow: true });
       toast(syncStatus.state === 'ok' ? 'Eşitlendi' : syncStatus.error || 'Eşitlenemedi', syncStatus.state === 'ok' ? '' : 'err');
       rerender();
     },

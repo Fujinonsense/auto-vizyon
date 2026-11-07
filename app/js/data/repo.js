@@ -243,10 +243,21 @@ export async function setSetting(key, value) {
 }
 
 export const peekOutbox = (limit = 50) => all('outbox', limit);
+export const readOutbox = () => all('outbox');
 
 export async function ackOutbox(seqs) {
   if (!seqs.length) return;
   await write(['outbox'], (s) => seqs.forEach((seq) => s.outbox.delete(seq)));
+}
+
+// After a push: entries that are done go, entries kept for a retry are rewritten in place (same seq,
+// with their try count), in one transaction.
+export async function settleOutbox(done, kept) {
+  if (!done.length && !kept.length) return;
+  await write(['outbox'], (s) => {
+    done.forEach((seq) => s.outbox.delete(seq));
+    kept.forEach((entry) => s.outbox.put(entry));
+  });
 }
 
 export async function outboxIds() {
