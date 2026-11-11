@@ -14,6 +14,10 @@ on:
         description: 'Yeni derleme yapma, sadece bu numaralı derlemeyi testçilere ulaştır (boş: derle ve gönder)'
         required: false
         default: ''
+      sunucu:
+        description: 'Mac sunucu türü (boş: macos-15). Sunucu çıkmazsa macos-15-intel ya da macos-26 yaz'
+        required: false
+        default: ''
   schedule:
     # Off the hour: GitHub delays, and sometimes drops, scheduled runs at the start of each hour.
     - cron: '23 6 1,15 * *'
@@ -33,7 +37,8 @@ permissions:
 jobs:
   ipa:
     if: ${{ !inputs.dagit_derleme }}
-    runs-on: macos-15
+    # The default Mac pool can be full for hours; a manual run can name another runner type.
+    runs-on: ${{ inputs.sunucu || 'macos-15' }}
     timeout-minutes: 45
     # One build at a time, never cancelled half way: a resend or a re-run must not kill a newer build.
     # A newer waiting build still replaces an older waiting one.
