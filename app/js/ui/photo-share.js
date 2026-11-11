@@ -21,6 +21,7 @@ export function openPhotoShare(photos, folder, { share = sharePhotos } = {}) {
     paint();
   } }, 'Tümünü seç');
   const primary = h('button', { class: 'btn primary', type: 'button', disabled: true, onclick: confirm }, 'Fotoğraf seç');
+  const cancel = h('button', { class: 'btn', type: 'button', onclick: () => !busy && s.close() }, 'Vazgeç');
   const content = h('div', { class: 'photo-picker' },
     h('p', { class: 'muted' }, 'Göndereceğin fotoğraflara dokun.'),
     all,
@@ -36,10 +37,11 @@ export function openPhotoShare(photos, folder, { share = sharePhotos } = {}) {
         toggles.push({ button, check, photo, label: label + ', ' + (i + 1) + '. fotoğraf' });
         return button;
       }))))),
-    h('div', { class: 'btn-row photo-picker-footer' },
-      h('button', { class: 'btn', type: 'button', onclick: () => s.close() }, 'Vazgeç'), primary));
+    h('div', { class: 'btn-row photo-picker-footer' }, cancel, primary));
 
-  const s = sheet(content, { title: "WhatsApp'ta paylaş", onClose: () => { closed = true; scope.revokeAll(); } });
+  // From Paylaş until the share call settles the picker cannot be closed: the photos are still being written
+  // and the phone's share sheet is about to open over it.
+  const s = sheet(content, { title: "WhatsApp'ta paylaş", canClose: () => !busy, onClose: () => { closed = true; scope.revokeAll(); } });
   s.el.querySelector('.sheet').classList.add('photo-picker-sheet');
 
   function paint() {
@@ -52,6 +54,7 @@ export function openPhotoShare(photos, folder, { share = sharePhotos } = {}) {
     }
     all.textContent = selected.size === gallery.length && gallery.length ? 'Seçimi kaldır' : 'Tümünü seç';
     all.disabled = busy;
+    cancel.disabled = busy;
     primary.disabled = busy || !selected.size;
     primary.textContent = busy ? 'Hazırlanıyor…' : selected.size ? 'Paylaş (' + selected.size + ')' : 'Fotoğraf seç';
   }

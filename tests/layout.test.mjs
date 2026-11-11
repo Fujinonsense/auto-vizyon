@@ -142,6 +142,12 @@ test('the cost kind chips come up under the top bar (and the notch) when Kaydet 
 test('photo picker uses an inner scroller, bottom safe area, theme tokens and 48px targets', () => {
   assert.equal(rule('.photo-picker-sheet')['overflow'], 'hidden');
   assert.equal(rule('.photo-picker-groups')['overflow-y'], 'auto');
+  // The picker body shrinks for the scroller without clipping, so the gold glow of "Paylaş" is not cut off
+  // flat at its right edge; the sheet's 16px side padding gives the glow its room.
+  assert.equal(rule('.photo-picker')['min-height'], '0');
+  assert.equal(rule('.photo-picker').overflow, undefined);
+  const glow = px(light['--shadow-gold'].split(' ')[2]); // "0 6px 16px rgba(…)": its blur
+  assert.ok(px(rule('.sheet').padding.split(' ')[1]) >= glow, 'room for the glow beside the button');
   assert.match(rule('.photo-picker-footer').padding, /env\(safe-area-inset-bottom\)/);
   assert.ok(px(rule('.photo-choice')['min-height']) >= 48);
   assert.ok(px(rule('.photo-choice')['min-width']) >= 48);

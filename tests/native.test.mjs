@@ -74,11 +74,29 @@ test('in a browser without file sharing, each file is downloaded', async () => {
 
 test('web cancellation returns false; other share errors are reported to the caller', async () => {
   const files = [{ name: 'a.jpg', blob: new Blob(['jpg']) }];
-  fakeNavigator({ canShare: () => true, share: async () => { throw Object.assign(new Error(), { name: 'AbortError' }); } });
+  const clicked = [];
+  globalThis.document = { createElement: () => ({ click() { clicked.push(this.download); } }) };
+  fakeNavigator({ canShare: () => true, share: async () => { throw new DOMException('cancelled', 'AbortError'); } });
   assert.equal(await shareFiles(files, 'Fotoğraflar'), false);
   const error = new Error('unavailable');
   navigator.share = async () => { throw error; };
   await assert.rejects(shareFiles(files, 'Fotoğraflar'), (e) => e === error);
+  navigator.share = async () => { throw new DOMException('share target failed', 'DataError'); };
+  await assert.rejects(shareFiles(files, 'Fotoğraflar'), { name: 'DataError' });
+  assert.deepEqual(clicked, [], 'nothing is downloaded');
+});
+
+test('web share that is not possible here (not allowed, not supported, a TypeError) downloads the files instead', async () => {
+  const files = [{ name: 'a.jpg', blob: new Blob(['1']) }, { name: 'b.jpg', blob: new Blob(['2']) }];
+  for (const error of [new DOMException('no gesture', 'NotAllowedError'), new DOMException('no files', 'NotSupportedError'), new TypeError('bad data')]) {
+    const clicked = [];
+    globalThis.document = { createElement: () => ({ click() { clicked.push(this.download); } }) };
+    let tried = 0;
+    fakeNavigator({ canShare: () => true, share: async () => { tried++; throw error; } });
+    assert.equal(await shareFiles(files, 'Fotoğraflar'), true, `${error.name}: the download counts as done`);
+    assert.equal(tried, 1, error.name);
+    assert.deepEqual(clicked, ['a.jpg', 'b.jpg'], error.name);
+  }
 });
 
 test('native failure is reported and sharePhotos forwards completed and cancelled results', async () => {

@@ -3,6 +3,10 @@
 
 const bridge = () => (globalThis.Capacitor?.isNativePlatform?.() ? globalThis.Capacitor : null);
 
+// Web Share errors that mean sharing is not possible here (not allowed in this context, files not
+// supported, data it refuses): the files are downloaded instead, as when the browser cannot share at all.
+const CANNOT_SHARE = new Set(['NotAllowedError', 'NotSupportedError', 'TypeError']);
+
 async function toBase64(blob) {
   const bytes = new Uint8Array(await blob.arrayBuffer());
   let s = '';
@@ -35,7 +39,7 @@ export async function shareFiles(files, title) {
       return true;
     } catch (e) {
       if (e?.name === 'AbortError') return false;
-      throw e;
+      if (!CANNOT_SHARE.has(e?.name)) throw e;
     }
   }
   for (const f of list) {

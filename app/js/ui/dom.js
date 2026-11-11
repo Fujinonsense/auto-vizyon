@@ -39,13 +39,15 @@ export function toast(text, type = '') {
   toastTimer = setTimeout(() => el.classList.remove('show'), type === 'err' ? 4000 : 2200);
 }
 
-export function sheet(content, { title = '', onClose } = {}) {
-  const onKey = (e) => e.key === 'Escape' && close();
-  const wrap = h('div', { class: 'sheet-wrap', onclick: (e) => e.target === wrap && close() },
+// canClose: while it returns false, the X, a tap outside the sheet and Escape leave it open; close() always closes.
+export function sheet(content, { title = '', onClose, canClose } = {}) {
+  const dismiss = () => { if (!canClose || canClose()) close(); };
+  const onKey = (e) => e.key === 'Escape' && dismiss();
+  const wrap = h('div', { class: 'sheet-wrap', onclick: (e) => e.target === wrap && dismiss() },
     h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
       h('div', { class: 'sheet-head' },
         h('h2', {}, title),
-        h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Kapat', onclick: () => close() }, icon('x', 26))),
+        h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Kapat', onclick: dismiss }, icon('x', 26))),
       content));
   let closed = false;
   function close() {

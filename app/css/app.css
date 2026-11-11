@@ -801,7 +801,7 @@ button.photo-main { display: grid; place-content: center; justify-items: center;
 .pthumb img { width: 100%; height: 100%; object-fit: cover; }
 .photo-picker-sheet { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
 .photo-picker-sheet .sheet-head { flex: none; }
-.photo-picker { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: hidden; }
+.photo-picker { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
 .photo-picker > p, .photo-picker > .btn { flex: none; }
 .photo-picker > .btn { align-self: flex-start; min-height: 48px; }
 .photo-picker-groups { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px; }

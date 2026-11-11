@@ -72,6 +72,51 @@ test('cancelled share keeps the sheet and selection; error shows toast and allow
   response = true; await Promise.all(primary().click()); assert.equal(picker.el.classList.contains('open'), false);
 });
 
+test('from Paylaş until the share settles the picker stays open (X, outside, Escape, Vazgeç); then it closes as usual', async () => {
+  const keys = new Set();
+  document.addEventListener = (type, fn) => { if (type === 'keydown') keys.add(fn); };
+  document.removeEventListener = (type, fn) => { if (type === 'keydown') keys.delete(fn); };
+  let settleShare;
+  await open(() => new Promise((resolve, reject) => { settleShare = { resolve, reject }; }));
+  await settle();
+  const cancel = () => byText(picker.el, 'button', 'Vazgeç');
+  const isOpen = () => picker.el.classList.contains('open');
+  const tryEveryClose = () => {
+    picker.el.querySelector('.sheet-head .icon-btn').click();
+    picker.el.click();
+    [...keys].forEach((fn) => fn({ key: 'Escape' }));
+    cancel().click();
+  };
+  choices()[0].click(); choices()[4].click();
+
+  // Cancelled in the share sheet: the picker and the selection stay.
+  let action = primary().click();
+  assert.equal(cancel().disabled, true, 'Vazgeç is off while preparing');
+  tryEveryClose(); mock.timers.tick(220);
+  assert.ok(isOpen()); assert.ok(document.querySelector('.sheet-wrap'));
+  assert.equal(primary().textContent, 'Hazırlanıyor…');
+  settleShare.resolve(false); await Promise.all(action);
+  assert.ok(isOpen()); assert.equal(cancel().disabled, false); assert.equal(primary().textContent, 'Paylaş (2)');
+  assert.deepEqual(choices().map((b) => b.getAttribute('aria-pressed')), ['true', 'false', 'false', 'false', 'true']);
+
+  // A failed share: still open, the toast says so.
+  action = primary().click();
+  tryEveryClose(); mock.timers.tick(220);
+  assert.ok(isOpen());
+  settleShare.reject(new Error('disk full')); await Promise.all(action);
+  assert.ok(isOpen()); assert.equal(document.getElementById('toast').textContent, 'Paylaşılamadı. Tekrar dene.');
+
+  // Shared: now it closes, and the ordinary close paths work again on a fresh picker.
+  action = primary().click();
+  tryEveryClose(); mock.timers.tick(220);
+  assert.ok(isOpen());
+  settleShare.resolve(true); await Promise.all(action);
+  assert.equal(isOpen(), false);
+  await open(); await settle();
+  [...keys].forEach((fn) => fn({ key: 'Escape' }));
+  assert.equal(isOpen(), false, 'Escape closes an idle picker');
+});
+
 test('folder shows WhatsApp photo action only with gallery photos and the same wrapped label', async () => {
   const repo = await import('../app/js/data/repo.js');
   await (await import('../app/js/data/db.js')).clearAll();
