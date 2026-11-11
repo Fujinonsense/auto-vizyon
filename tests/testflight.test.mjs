@@ -477,5 +477,5 @@ test('no valid build left at all stops the follow-up run', async () => {
 });
 
 test('release notes describe the chosen photos, camera recovery and removed accident report', () => {
-  assert.equal(WHATS_NEW, "Yeni sürüm. Fotoğrafları seçip WhatsApp'ta paylaş; belge kamerası daha sağlam; kaza tutanağı kaldırıldı.");
+  assert.equal(WHATS_NEW, "Yeni sürüm. Fotoğrafları seçip WhatsApp'ta paylaş; ehliyet ve kimlik kamerasında çerçevenin içi artık beyaz kalmıyor; kaza tutanağı kaldırıldı.");
 });
