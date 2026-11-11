@@ -1,5 +1,5 @@
 // Full-screen in-app camera. Resolves {photos: Blob[], skipped} or null when closed.
-// frame: 'car' (no guide), 'doc' (ruhsat), 'card' (ehliyet / kimlik).
+// frame: 'car' (no guide), 'doc' (ruhsat), 'card' (ehliyet / kimlik); drawn as .cam-frame-doc / .cam-frame-card.
 // The guide is only drawn over the preview: a shot is always the camera's whole picture, nothing is cut off.
 import { h, icon } from '../ui/dom.js';
 
@@ -28,7 +28,7 @@ export function openCamera({ title, hint = '', multi = false, skipText = '', don
       h('div', { class: 'cam-top' },
         h('button', { class: 'cam-round', type: 'button', 'aria-label': 'Kapat', onclick: () => finish(null) }, icon('x', 26)),
         h('div', { class: 'cam-title' }, h('b', {}, title), hint && h('span', {}, hint))),
-      h('div', { class: 'cam-view' }, video, frame !== 'car' && h('div', { class: `cam-frame ${frame}` }), fallback, flash),
+      h('div', { class: 'cam-view' }, video, frame !== 'car' && h('div', { class: `cam-frame cam-frame-${frame}` }), fallback, flash),
       status,
       multi ? strip : null,
       h('div', { class: 'cam-bar' },

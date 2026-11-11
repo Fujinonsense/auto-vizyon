@@ -6,6 +6,7 @@ import { docCameraOptions } from '../app/js/ui/docs.js';
 
 const realNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
 const BACK_TOO = 'Gerekirse arka yüzünü de çek';
+const DOC_KINDS = ['ruhsat', 'ehliyet', 'kimlik'];
 
 // Just enough DOM for the camera: elements, the page body, canvases and a camera that streams.
 class FakeNode {
@@ -89,10 +90,59 @@ test('camera: the guide asked for is drawn over the preview, none for the car', 
   for (const frame of ['doc', 'card', undefined]) {
     const open = openCamera({ title: 'Fotoğraf', frame });
     const overlay = dom.body.children.at(-1);
-    assert.deepEqual(byClass(overlay, 'cam-frame').map((n) => n.className), frame ? [`cam-frame ${frame}`] : []);
+    assert.deepEqual(byClass(overlay, 'cam-frame').map((n) => n.className), frame ? [`cam-frame cam-frame-${frame}`] : []);
     byClass(overlay, 'cam-round')[0].click();
     assert.equal(await open, null);
     assert.equal(dom.body.children.length, 0, 'closed camera leaves the page');
+  }
+});
+
+// The classes the guide frame wears when the app opens the camera for each document.
+async function frameClasses(dom) {
+  const out = {};
+  for (const kind of DOC_KINDS) {
+    const open = openCamera(docCameraOptions(kind));
+    const overlay = dom.body.children.at(-1);
+    const frames = byClass(overlay, 'cam-frame');
+    assert.equal(frames.length, 1, `${kind}: one guide`);
+    out[kind] = frames[0].className.split(' ').filter(Boolean);
+    byClass(overlay, 'cam-round')[0].click();
+    await open;
+  }
+  return out;
+}
+
+// "card" on the ehliyet / kimlik guide also matched the app-wide .card rule, which filled the guide with
+// the page colour (white, dark in the dark theme) so the licence could not be seen through it.
+test('ruhsat, ehliyet and kimlik: every class on the guide frame is the camera\'s own (cam-frame…)', async () => {
+  const worn = await frameClasses(fakeDom());
+  for (const kind of DOC_KINDS) {
+    assert.ok(worn[kind].length >= 2, `${kind}: the guide and its shape`);
+    assert.deepEqual(worn[kind].filter((c) => !c.startsWith('cam-frame')), [], `${kind}: "${worn[kind].join(' ')}"`);
+  }
+});
+
+test('guide CSS: see-through inside, the shapes only set the aspect ratio, and no app-wide rule styles a class the guide wears', async () => {
+  const css = readFileSync(new URL('../app/css/app.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rule = (sel) => {
+    const body = css.match(new RegExp(`^${sel.replaceAll('.', '\\.')} \\{([^}]*)\\}`, 'm'))?.[1];
+    assert.ok(body, `${sel} is in app.css`);
+    return Object.fromEntries(body.split(';').map((d) => [d.slice(0, d.indexOf(':')).trim(), d.slice(d.indexOf(':') + 1).trim()]).filter(([k, v]) => k && v));
+  };
+  assert.equal(rule('.cam-frame').background, 'transparent');
+  // Stroke, corners and the dimming shade come from .cam-frame alone, so both guides are drawn alike.
+  assert.deepEqual(rule('.cam-frame-doc'), { 'aspect-ratio': '1.42' });
+  assert.deepEqual(rule('.cam-frame-card'), { 'aspect-ratio': '1.586' });
+
+  // Every selector in app.css (inside @media too) with the classes of the element it styles: its last compound.
+  const selectors = [...css.matchAll(/([^{}]+)\{[^{}]*\}/g)]
+    .flatMap(([, list]) => list.split(';').at(-1).split(',').map((s) => s.trim()).filter(Boolean))
+    .map((s) => ({ s, classes: (s.split(/[\s>+~]+/).at(-1).match(/\.[\w-]+/g) || []).map((c) => c.slice(1)) }));
+  assert.ok(selectors.some(({ s }) => s === '.card'), 'the app-wide card rule is seen');
+  const worn = new Set(Object.values(await frameClasses(fakeDom())).flat());
+  for (const c of worn) {
+    const foreign = selectors.filter(({ s, classes }) => classes.includes(c) && !s.startsWith('.cam')).map(({ s }) => s);
+    assert.deepEqual(foreign, [], `.${c} is styled outside the camera`);
   }
 });
 

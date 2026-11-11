@@ -101,7 +101,7 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
     photoHead.replaceChildren(
       car
         ? h('img', { class: 'photo-main', src: scope.url(car.blob), alt: 'Aracın fotoğrafı' })
-        : h('button', { class: 'photo-main empty', type: 'button', onclick: addCarPhoto }, icon('camera-plus', 34), 'Aracın fotoğrafını çek'),
+        : h('button', { class: 'photo-main', type: 'button', onclick: addCarPhoto }, icon('camera-plus', 34), 'Aracın fotoğrafını çek'),
       h('div', { class: 'photo-strip' },
         damage.map((p, i) => h('img', { src: scope.url(p.thumb), alt: `Hasar fotoğrafı ${i + 1}` })),
         h('button', { class: 'photo-add', type: 'button', onclick: addDamage }, icon('plus', 22), h('span', {}, 'Hasar'))));

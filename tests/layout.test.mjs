@@ -110,6 +110,29 @@ test('below 375 px the camera bar keeps to the screen after the first shot; wide
   assert.ok(px(rule('.cam-side')['min-height']) >= 48 && px(rule('.cam-shutter').width) === 80, 'tap targets stay big');
 });
 
+// Classes app.css styles on their own anywhere (".card {", ".empty {"): app-wide rules a modifier must not hit by accident.
+const standalone = new Set([...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{[^{}]*\}/g)]
+  .flatMap(([, list]) => list.split(',').map((s) => /^\.([\w-]+)$/.exec(s.trim())?.[1])).filter(Boolean));
+
+test('the empty car photo button of a new folder wears no class an app-wide rule styles, so it fits a 320 px screen', async () => {
+  assert.ok(standalone.has('empty') && standalone.has('card'), 'the app-wide rules are seen');
+  const dom = installDom();
+  try {
+    const { newDraft } = await import('../app/js/ui/docs.js');
+    const { folderForm } = await import('../app/js/ui/screens/folder-edit.js');
+    const ctx = { leave: [], onLeave(fn) { this.leave.push(fn); } };
+    const form = folderForm(newDraft(), ctx);
+    await settle();
+    const btn = form.querySelector('button.photo-main');
+    assert.equal(btn.textContent, 'Aracın fotoğrafını çek');
+    // The empty-state block's 40px padding made the form grid wider than the screen at 320 px.
+    assert.deepEqual(btn.className.split(' ').filter((c) => c !== 'photo-main' && standalone.has(c)), []);
+    ctx.leave.forEach((fn) => fn());
+  } finally {
+    dom.uninstall();
+  }
+});
+
 test('the cost kind chips come up under the top bar (and the notch) when Kaydet points at them', () => {
   const margin = rule('.cost-cats')['scroll-margin-top'];
   assert.match(margin, /env\(safe-area-inset-top\)/);
