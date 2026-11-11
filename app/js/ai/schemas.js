@@ -78,27 +78,4 @@ export const KINDS = {
       { key: 'gecerlilik', label: 'Son geçerlilik' },
     ],
   ),
-  tutanak: kind(
-    'Kaza tutanağı',
-    [
-      'Bu bir Maddi Hasarlı Trafik Kazası Tespit Tutanağı. Sadece A ve B araçlarının "Sürücü Bilgileri" kutularını ve "Araç Bilgileri" kutularındaki iki plakayı oku.',
-      'A sürücüsünü a ile, B sürücüsünü b ile başlayan alanlara yaz: aAdSoyad / bAdSoyad adı soyadı, aTc / bTc T.C. kimlik no,',
-      'aEhliyet / bEhliyet sürücü belge no ve sınıfı tek değer olarak (ör. "106408-B"), aAlindigiYer / bAlindigiYer belgenin alındığı yer,',
-      'aAdres / bAdres adresi, aTel / bTel telefonu, aPlaka / bPlaka o aracın plakası.',
-      'Kaza yeri ve zamanı, sigorta bilgileri, kroki, kaza durumu, beyanlar ve imzalar gibi başka hiçbir şeyi okuma.',
-      'El yazısı okunmuyorsa ya da emin değilsen o alanı boş bırak ve anahtarını "belirsiz" listesine ekle.',
-    ].join(' '),
-    ['a', 'b'].flatMap((d) => {
-      const who = `${d.toUpperCase()} sürücüsü`;
-      return [
-        { key: `${d}AdSoyad`, label: `${who} ad soyad` },
-        { key: `${d}Tc`, label: `${who} T.C. kimlik no` },
-        { key: `${d}Ehliyet`, label: `${who} sürücü belge no ve sınıfı` },
-        { key: `${d}AlindigiYer`, label: `${who} belgenin alındığı yer` },
-        { key: `${d}Adres`, label: `${who} adres` },
-        { key: `${d}Tel`, label: `${who} telefon` },
-        { key: `${d}Plaka`, label: `${d.toUpperCase()} aracının plakası` },
-      ];
-    }),
-  ),
 };

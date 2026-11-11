@@ -49,7 +49,7 @@ test('phone and Google stay in step: push, photo to Drive, sheet edit comes back
   assert.equal(w.sheets.get('İşler').data.length, 1);
 });
 
-test('costs, the invoice flag and the accident report reach the sheet and come back without rewriting the phone', async () => {
+test('costs and invoice reach the sheet; legacy accident report stays only on the phone and come back without rewriting the phone', async () => {
   const w = await connected();
   const f = await repo.saveFolder({ name: 'Uğurcan Kaya', plate: '34 NMA 887', tutanak: { aAdSoyad: 'Ali Veli', bPlaka: '35 KR 7781' } });
   const j = await repo.saveJob({
@@ -69,8 +69,8 @@ test('costs, the invoice flag and the accident report reach the sheet and come b
   assert.equal(rowOf(old.id)[jh.indexOf('Maliyet Kalemleri')], '');
   assert.equal(rowOf(old.id)[jh.indexOf('Fatura')], 'Kesilmedi');
   const fs = w.sheets.get('Müşteriler').data;
-  assert.equal(fs[1][fs[0].indexOf('Tutanak A Ad Soyad')], 'Ali Veli');
-  assert.equal(fs[1][fs[0].indexOf('Tutanak B Plaka')], '35 KR 7781');
+  assert.ok(fs[0].every((h) => !h.startsWith('Tutanak')));
+  assert.deepEqual((await repo.getFolder(f.id)).tutanak, f.tutanak);
 
   // The pull right after the push reads the same rows back: nothing on the phone is rewritten.
   assert.equal((await repo.getJob(j.id)).updatedAt, j.updatedAt);

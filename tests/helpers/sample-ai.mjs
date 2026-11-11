@@ -17,7 +17,7 @@ export function useSampleAi() {
   };
 }
 
-// The accident report's sample: driver A Uğurcan Kaya, driver B Ayşe Kara (35 KR 7781), her address unreadable.
+// Read a document through the sample AI while advancing its response timer.
 export async function readSample(draft, kind) {
   const done = readInto(draft, kind, [new Blob(['x'], { type: 'image/jpeg' })]);
   for (let i = 0; i < 20 && draft.reads[kind].state === 'reading'; i++) {

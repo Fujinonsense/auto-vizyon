@@ -35,10 +35,7 @@ var JOB_HEADERS = ['Tarih', 'Müşteri', 'Telefon', 'Plaka', 'Araç', 'Model Yı
 var FOLDER_HEADERS = ['Ad Soyad', 'Telefon', 'Plaka', 'Marka', 'Model', 'Renk', 'Model Yılı', 'Şase No', 'Motor No',
   'Ticari Adı', 'Ruhsat Sahibi', 'Ruhsat TC/VKN', 'Belge Seri No', 'Tescil Tarihi', 'Ruhsat Tipi', 'Ehliyet Ad Soyad',
   'Ehliyet TC', 'Ehliyet No', 'Ehliyet Sınıfı', 'Ehliyet Veriliş', 'Ehliyet Doğum Tarihi', 'Kimlik Ad Soyad', 'Kimlik TC',
-  'Kimlik Doğum Tarihi', 'Kimlik Seri No', 'Kimlik Geçerlilik', 'Drive Klasörü', 'Not', 'Güncellendi', 'Klasör No',
-  'Tutanak A Ad Soyad', 'Tutanak A TC', 'Tutanak A Ehliyet', 'Tutanak A Alındığı Yer', 'Tutanak A Adres', 'Tutanak A Telefon',
-  'Tutanak A Plaka', 'Tutanak B Ad Soyad', 'Tutanak B TC', 'Tutanak B Ehliyet', 'Tutanak B Alındığı Yer', 'Tutanak B Adres',
-  'Tutanak B Telefon', 'Tutanak B Plaka'];
+  'Kimlik Doğum Tarihi', 'Kimlik Seri No', 'Kimlik Geçerlilik', 'Drive Klasörü', 'Not', 'Güncellendi', 'Klasör No'];
 var SUMMARY_HEADERS = ['Ay', 'İş Sayısı', 'KDV Hariç', 'KDV', 'Toplam', 'Tahsil Edilen', 'Bekleyen'];
 var MONEY = ['Tutar (KDV Hariç)', 'KDV', 'Toplam (KDV Dahil)', 'Maliyet'];
 var KIND = { arac: 'Araç', once: 'Hasar öncesi', sonra: 'Hasar sonrası', ruhsat: 'Ruhsat', ehliyet: 'Ehliyet', kimlik: 'Kimlik', tutanak: 'Tutanak' };

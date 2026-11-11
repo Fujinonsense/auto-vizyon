@@ -70,13 +70,3 @@ test('a sheet without the new columns never touches costs or the invoice flag', 
   const r = mergeRemote(local([mine]), { folders: [], jobs: [{ ...remoteJob, paid: true }] }, new Set());
   assert.equal('costs' in r.jobs[0] || 'invoiced' in r.jobs[0], false);
 });
-
-test('accident report fields merge one by one, like the other documents', () => {
-  const folders = [{ id: 'f1', name: 'Uğurcan Kaya', tutanak: { aTel: '0532 418 27 90' } }];
-  const r = mergeRemote(local([localJob], folders), { folders: [{ id: 'f1', name: 'Uğurcan Kaya', tutanak: { aAdSoyad: 'Ali Veli' }, remoteStamp: 8 }], jobs: [] }, new Set());
-  assert.equal(r.folders.length, 1);
-  assert.deepEqual(r.folders[0].tutanak, { aTel: '0532 418 27 90', aAdSoyad: 'Ali Veli' });
-  const saved = [{ ...folders[0], tutanak: r.folders[0].tutanak }];
-  const again = mergeRemote(local([localJob], saved), { folders: [{ id: 'f1', name: 'Uğurcan Kaya', tutanak: { aAdSoyad: 'Ali Veli' }, remoteStamp: 9 }], jobs: [] }, new Set());
-  assert.equal(again.folders.length, 0, 'the same report again changes nothing');
-});

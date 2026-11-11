@@ -1,7 +1,7 @@
 // Which rows from the Google sheet overwrite the phone's copy. Rows the phone hasn't sent yet win;
 // rows that say the same thing are skipped, so the phone keeps how an amount was typed (KDV dahil).
 const JOB_FIELDS = ['folderId', 'date', 'description', 'parts', 'net', 'vat', 'total', 'vatRate', 'paid', 'payer', 'insurer', 'claimNo', 'note', 'costs', 'invoiced'];
-const DOCS = ['ruhsat', 'ehliyet', 'kimlik', 'tutanak'];
+const DOCS = ['ruhsat', 'ehliyet', 'kimlik'];
 // A job saved before costs and the invoice flag existed says the same as "no costs, not invoiced".
 const JOB_DEFAULTS = { costs: [], invoiced: false };
 const same = (a, b) => JSON.stringify(a ?? '') === JSON.stringify(b ?? '');

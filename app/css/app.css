@@ -432,7 +432,7 @@ button.stat { cursor: pointer; }
 .section { padding: 8px 16px 14px; }
 .section-head { display: flex; align-items: center; gap: 8px; min-height: 48px; }
 .section-head h3 { flex: 1; }
-/* On a narrow phone the title keeps its line ("Tutanak A") and the button next to it wraps its own words,
+/* On a narrow phone the title keeps its line and the button next to it wraps its own words,
    its icon at full size right next to them: a wrapped label as wide as its longer word. */
 .section-head .btn { min-height: 48px; white-space: normal; line-height: 1.2; text-align: center; }
 .section-head .btn svg { flex: none; }
@@ -917,8 +917,6 @@ button.photo-main { display: grid; place-content: center; justify-items: center;
 }
 .cam-frame.doc { aspect-ratio: 1.42; }
 .cam-frame.card { aspect-ratio: 1.586; }
-/* The accident report is an upright A4 page: sized by the view's height so the whole page fits. */
-.cam-frame.page { left: 50%; right: auto; height: 78%; max-width: 84%; aspect-ratio: 1 / 1.414; transform: translate(-50%, -50%); }
 .cam-fallback {
   position: absolute;
   inset: 0;

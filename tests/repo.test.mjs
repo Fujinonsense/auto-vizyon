@@ -146,10 +146,10 @@ test('a job saved before costs existed opens and saves with "no costs, not invoi
   assert.equal(k.total, 120);
 });
 
-test('every folder has an accident report object, kept by later saves', async () => {
+test('new folders have no accident report; legacy data is kept by later saves', async () => {
   const f = await repo.saveFolder({});
-  assert.deepEqual(f.tutanak, {});
-  assert.deepEqual((await repo.getFolder(f.id)).tutanak, {});
+  assert.equal('tutanak' in f, false);
+  assert.equal('tutanak' in await repo.getFolder(f.id), false);
   const g = await repo.saveFolder({ id: f.id, tutanak: { aAdSoyad: 'Ali Veli' } });
   assert.deepEqual(g.tutanak, { aAdSoyad: 'Ali Veli' });
   assert.deepEqual((await repo.saveFolder({ id: f.id, name: 'B' })).tutanak, { aAdSoyad: 'Ali Veli' });
@@ -176,7 +176,7 @@ test('applyRemote: rows without costs, invoice flag or accident report get the d
   const j2 = await repo.getJob('j2');
   assert.deepEqual(j2.costs, [{ cat: 'boya', label: '', amount: 1500 }]);
   assert.equal(j2.invoiced, true);
-  assert.deepEqual((await repo.getFolder('f9')).tutanak, {});
+  assert.equal('tutanak' in await repo.getFolder('f9'), false);
   assert.deepEqual((await repo.getFolder(f.id)).tutanak, { aTel: '0532 418 27 90' });
 });
 

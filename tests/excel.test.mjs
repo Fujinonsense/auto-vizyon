@@ -36,12 +36,8 @@ test('column lists start with what a person reads first; new columns come after 
   assert.equal(JOB_COLUMNS.at(-1).header, 'Fatura');
   assert.deepEqual(JOB_COLUMNS.slice(-6).map((c) => c.header), ['Güncellendi', 'Kayıt No', 'Klasör No', 'Maliyet', 'Maliyet Kalemleri', 'Fatura']);
   assert.equal(FOLDER_COLUMNS[0].header, 'Ad Soyad');
-  assert.equal(FOLDER_COLUMNS.at(-1).header, 'Tutanak B Plaka');
-  assert.deepEqual(FOLDER_COLUMNS.slice(-15).map((c) => c.header), [
-    'Klasör No',
-    'Tutanak A Ad Soyad', 'Tutanak A TC', 'Tutanak A Ehliyet', 'Tutanak A Alındığı Yer', 'Tutanak A Adres', 'Tutanak A Telefon', 'Tutanak A Plaka',
-    'Tutanak B Ad Soyad', 'Tutanak B TC', 'Tutanak B Ehliyet', 'Tutanak B Alındığı Yer', 'Tutanak B Adres', 'Tutanak B Telefon', 'Tutanak B Plaka',
-  ]);
+  assert.equal(FOLDER_COLUMNS.at(-1).header, 'Klasör No');
+  assert.ok(FOLDER_COLUMNS.every((c) => !c.header.startsWith('Tutanak')));
 });
 
 test('no two headers of a sheet read as the same column', () => {
@@ -52,19 +48,6 @@ test('no two headers of a sheet read as the same column', () => {
 });
 
 const costs = [{ cat: 'dis-iscilik', label: '', amount: 20000 }, { cat: 'diger', label: 'Cam filmi', amount: 10000 }];
-// As the phone keeps it: the two phones in digits, like the customer's phone.
-const tutanak = {
-  aAdSoyad: 'Uğurcan Kaya', aTc: '10000000146', aEhliyet: '482190-B', aAlindigiYer: 'Kadıköy', aAdres: 'Moda Cad. No 12 Kadıköy İstanbul',
-  aTel: '05324182790', aPlaka: '34 NMA 887',
-  bAdSoyad: 'Ayşe Kara', bTc: '19090909018', bEhliyet: '106408-B', bAlindigiYer: 'Konak', bAdres: 'Alsancak Mah. 1453 Sok. İzmir',
-  bTel: '05053776420', bPlaka: '35 KR 7781',
-};
-
-// What Google Sheets does to text written into a cell left as Automatic (the live sheet's hand-typed
-// Tutanak columns): digits only become a number, so a leading 0 is lost.
-const automatic = (v) => (typeof v === 'string' && /^\d+$/.test(v.trim()) ? Number(v) : v);
-const intoLiveSheet = (row) => Object.fromEntries(Object.entries(row).map(([h, v]) => [h, h.startsWith('Tutanak') ? automatic(v) : v]));
-
 test('job row: costs and the invoice flag go out as Maliyet, Maliyet Kalemleri, Fatura and come back', () => {
   const row = jobToRow({ ...job, costs, invoiced: true }, folder);
   assert.equal(row['Maliyet'], 30000);
@@ -152,53 +135,6 @@ test('rowToJob: Fatura typed by hand in any case', () => {
   assert.deepEqual(rowToJob({ 'maliyet kalemleri': 'boya: 1.500' }).costs, [{ cat: 'boya', label: '', amount: 1500 }]);
 });
 
-test('folder row round trip keeps all 14 accident report fields', () => {
-  const row = folderToRow({ ...folder, tutanak });
-  assert.deepEqual(rowToFolder(row).tutanak, tutanak);
-  assert.deepEqual(rowToFolder(intoLiveSheet(row)).tutanak, tutanak, 'also through Automatic-format columns');
-  assert.equal(row['Tutanak A Telefon'], '0532 418 27 90', 'written spaced, like the customer phone');
-  assert.equal(row['Tutanak B Telefon'], '0505 377 64 20');
-  const none = folderToRow(folder);
-  assert.equal(none['Tutanak A Ad Soyad'], '', 'a folder saved before the accident report existed writes empty cells');
-  assert.equal(none['Tutanak A Telefon'], '');
-  assert.equal('tutanak' in rowToFolder(none), false);
-});
-
-test('accident report phones keep their leading 0 through the live sheet, and the pull after the push changes nothing', () => {
-  for (const typed of ['05053776420', '0505 377 64 20', '+90 505 377 64 20', '5053776420']) {
-    const stored = normalizePhone(typed); // what the folder form saves
-    assert.equal(stored, '05053776420', typed);
-    const local = { ...folder, tutanak: { aAdSoyad: 'Ali Veli', aTel: stored, bTel: stored } };
-    const row = folderToRow(local);
-    assert.equal(row['Tutanak A Telefon'], '0505 377 64 20', typed);
-    assert.equal(row['Tutanak B Telefon'], '0505 377 64 20', typed);
-    const back = rowToFolder(intoLiveSheet(row));
-    assert.deepEqual(back.tutanak, local.tutanak, typed);
-    const pulled = mergeRemote({ folders: new Map([[local.id, local]]), jobs: new Map() }, { folders: [{ ...back, remoteStamp: 9 }], jobs: [] }, new Set());
-    assert.deepEqual(pulled.folders, [], `${typed}: no false remote change`);
-  }
-});
-
-test('an accident report phone that is not one number goes out as typed and comes back unchanged, Automatic columns too', () => {
-  for (const typed of ['0212 555 44 33 / 12', '0532 418 27 90 - 0216 333 22 11']) {
-    const local = { ...folder, tutanak: { aAdSoyad: 'Ali Veli', aTel: typed, bTel: '05053776420' } };
-    const row = folderToRow(local);
-    assert.equal(row['Tutanak A Telefon'], typed, 'spaces and separators: Sheets keeps it as text');
-    const back = rowToFolder(intoLiveSheet(row));
-    assert.deepEqual(back.tutanak, local.tutanak, typed);
-    const pulled = mergeRemote({ folders: new Map([[local.id, local]]), jobs: new Map() }, { folders: [{ ...back, remoteStamp: 9 }], jobs: [] }, new Set());
-    assert.deepEqual(pulled.folders, [], `${typed}: no false remote change`);
-  }
-  // The bare digits it used to write lose the leading 0, or the digits past 15, in such a column.
-  assert.notEqual(String(intoLiveSheet({ 'Tutanak A Telefon': '0212555443312' })['Tutanak A Telefon']), '0212555443312');
-  assert.notEqual(String(intoLiveSheet({ 'Tutanak A Telefon': '0532418279002163332211' })['Tutanak A Telefon']), '532418279002163332211');
-});
-
-test('an accident report phone already stripped in the sheet reads back with its leading 0', () => {
-  const back = rowToFolder({ 'Klasör No': 'f1', 'Tutanak A Telefon': 5053776420, 'Tutanak B Telefon': '5053776420' });
-  assert.deepEqual(back.tutanak, { aTel: '05053776420', bTel: '05053776420' });
-});
-
 test('job row round trip keeps money, KDV, payment and links', () => {
   const back = rowToJob(jobToRow(job, folder));
   assert.equal(back.id, 'j1');
@@ -262,8 +198,8 @@ test('workbook built for Excel reads back into the same jobs and folders', async
   assert.equal(folders[0].ruhsat.belgeSeriNo, 'FA 482913');
 });
 
-test('the app-built workbook shows Maliyet as money and reads costs, invoice flag and accident report back', async () => {
-  const blob = await buildWorkbook({ folders: [{ ...folder, tutanak }], jobs: [{ ...job, costs, invoiced: true }] });
+test('the app-built workbook shows Maliyet as money and reads costs, invoice flag back', async () => {
+  const blob = await buildWorkbook({ folders: [folder], jobs: [{ ...job, costs, invoiced: true }] });
   const wb = XLSX.read(new Uint8Array(await blob.arrayBuffer()), { type: 'array', cellNF: true });
   const ws = wb.Sheets['İşler'];
   const cellOf = (header) => ws[XLSX.utils.encode_cell({ r: 1, c: JOB_COLUMNS.findIndex((c) => c.header === header) })];
@@ -274,7 +210,7 @@ test('the app-built workbook shows Maliyet as money and reads costs, invoice fla
   const { folders, jobs } = await readWorkbook(blob);
   assert.deepEqual(jobs[0].costs, costs);
   assert.equal(jobs[0].invoiced, true);
-  assert.deepEqual(folders[0].tutanak, tutanak);
+  assert.equal('tutanak' in folders[0], false);
 });
 
 test('readWorkbook: a row with nothing the app knows is not a job, even when the new columns are there', async () => {
@@ -291,12 +227,6 @@ test('readWorkbook: a row with nothing the app knows is not a job, even when the
   assert.equal(jobs[0].description, 'Kapı');
   assert.deepEqual(jobs[0].costs, [{ cat: 'boya', label: '', amount: 500 }]);
   assert.equal(jobs[0].invoiced, true);
-});
-
-test('importRecords: accident report fields from Excel fill in and never wipe the others', async () => {
-  const f = await repo.saveFolder({ name: 'Uğurcan Kaya', plate: '34 NMA 887', tutanak: { aTel: '0532 418 27 90', aAdSoyad: 'Ali' } });
-  await importRecords({ folders: [{ id: f.id, tutanak: { aAdSoyad: 'Ali Veli', bPlaka: '35 KR 7781' } }] });
-  assert.deepEqual((await repo.getFolder(f.id)).tutanak, { aTel: '0532 418 27 90', aAdSoyad: 'Ali Veli', bPlaka: '35 KR 7781' });
 });
 
 test('importRecords: updates by id, matches by plate, creates the rest', async () => {
@@ -317,4 +247,15 @@ test('importRecords: updates by id, matches by plate, creates the rest', async (
   assert.equal((await repo.jobsForFolder(ayse.id))[0].total, 3600);
   const mehmet = await repo.findFolderByPlate('06BHK412');
   assert.equal(mehmet.name, 'Mehmet Yıldız');
+});
+
+test('all 14 retired sheet columns are ignored without a false remote change', () => {
+  const extra = Object.fromEntries(['A', 'B'].flatMap((d) => ['Ad Soyad', 'TC', 'Ehliyet', 'Alındığı Yer', 'Adres', 'Telefon', 'Plaka'].map((k) => [`Tutanak ${d} ${k}`, 'old value'])));
+  assert.equal(Object.keys(extra).length, 14);
+  const mine = { ...folder, tutanak: { aAdSoyad: 'Legacy' }, aiFilled: ['tutanak.aAdSoyad'], unclear: ['tutanak.bTc'] };
+  const row = folderToRow(mine);
+  assert.ok(Object.keys(row).every((h) => !h.startsWith('Tutanak')));
+  const pulled = rowToFolder({ ...row, ...extra });
+  assert.equal('tutanak' in pulled, false);
+  assert.deepEqual(mergeRemote({ folders: new Map([[mine.id, mine]]), jobs: new Map() }, { folders: [{ ...pulled, remoteStamp: 999 }], jobs: [] }, new Set()), { folders: [], jobs: [] });
 });

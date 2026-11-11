@@ -39,7 +39,7 @@ Kurulum şunları da yapar: Drive'da **Auto Vizyon** klasörü, içinde **Auto V
 
 `Code.gs` sonradan değişirse: yenisini yapıştır, **kurulum**'u bir kez çalıştır, **Dağıt → Dağıtımları yönet → düzenle → Sürüm: Yeni sürüm → Dağıt**. Adres aynı kalır.
 
-**Maliyet, fatura, kaza tutanağı (Kasım 2026):** tabloya yeni sütunlar eklendi, hepsi sayfaların en sonunda, eski satırlar kaymaz: **İşler**'de **Maliyet**, **Maliyet Kalemleri**, **Fatura**; **Müşteriler**'de **Tutanak A Ad Soyad** … **Tutanak B Plaka** (14 sütun). Başlıklar tabloda olunca şu anki Code.gs onları hemen doldurur; elle yazılabilir ya da **kurulum** ekler (Maliyet'i para biçimine de sokar). Tutanak fotoğrafları Drive'a ancak yeni `Code.gs` yapıştırılıp yukarıdaki gibi yeni sürümle dağıtılınca "Tutanak …" adıyla kaydedilir, o zamana kadar "Fotoğraf …" adıyla. Tabloya kendi sütununu eklediysen **kurulum**'dan önce onu yeni sütunların sağına taşı: kurulum ilk satırdaki başlıkları baştan yazar.
+**Maliyet ve fatura (Kasım 2026):** İşler sayfasında Maliyet, Maliyet Kalemleri ve Fatura sütunları kullanılır. Müşteriler sayfasındaki eski "Tutanak ..." sütunları artık kullanılmıyor; istersen elle silebilirsin.
 
 Başlıkları elle yazdıysan o sütunların biçimini de ayarla, yoksa Google sadece rakamdan oluşan yazıyı sayıya çevirir (baştaki 0 gider) ve tarihe benzeyeni tarih yapar: **Müşteriler**'de **AE:AR**, **İşler**'de **W:X** sütunlarını seç → **Biçim → Sayı → Düz metin**. **İşler**'de **V** sütununu (**Maliyet**) öteki para sütunları gibi ₺ yap: **Biçim → Sayı → Özel sayı biçimi** → `#,##0.00 "₺"` → **Uygula**. Daha kolayı: yeni `Code.gs`'i yapıştırıp dağıttıktan sonra **kurulum**'u bir kez çalıştır, bu biçimleri o ayarlar.
 
@@ -83,7 +83,7 @@ Telefondan kaydedilen iş 1-2 dakika içinde bu tabloda görünür. Excel'deki b
 - **Yeni araç**: ortadaki altın düğme → aracı çek (plaka okunur) → göçüğün öncesini çek ya da **Geç** → isim ve telefon → lazımsa Ruhsat / Ehliyet / Kimlik → tutar → **Kaydet**.
 - **Klasör**: Ara, WhatsApp ("Aracınız hazır"), her bilginin solundaki kopyala düğmesi, **Tümünü kopyala**, öncesi/sonrası fotoğrafları, işler ve ödeme.
 - **Kazanç**: ay ay ciro, KDV, alacaklar ve Excel dosyası (WhatsApp, mail ya da Dosyalar'a gönderilir).
-- **Maliyet, fatura, kaza tutanağı**: işte **Masraf ekle** ile harcamaları yaz (dış işçilik, boya, yedek parça…; başka bir şeyse **Diğer** ve ne için olduğu), KDV hariç kâr işte ve **Kazanç**'ta kendiliğinden çıkar. Faturayı kesince **Fatura kesildi**'yi aç; listedeki **Faturasız** süzgeci kesilmeyenleri gösterir. Kazalı araçta klasörden **Kaza tutanağı**'nın fotoğrafını çek: sadece iki sürücünün bilgileri ve plakalar okunur.
+- **Maliyet ve fatura**: işte **Masraf ekle** ile harcamaları yaz (dış işçilik, boya, yedek parça…; başka bir şeyse **Diğer** ve ne için olduğu), KDV hariç kâr işte ve **Kazanç**'ta kendiliğinden çıkar. Faturayı kesince **Fatura kesildi**'yi aç; listedeki **Faturasız** süzgeci kesilmeyenleri gösterir.
 
 ## Sorun olursa
 

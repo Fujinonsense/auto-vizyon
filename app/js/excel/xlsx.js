@@ -69,7 +69,7 @@ export async function readWorkbook(blob) {
   };
 }
 
-const DOC_KEYS = ['ruhsat', 'ehliyet', 'kimlik', 'tutanak'];
+const DOC_KEYS = ['ruhsat', 'ehliyet', 'kimlik'];
 
 // Rows matched by their id, then by plate; everything else is created. Changes are queued for Google.
 export async function importRecords({ folders = [], jobs = [] }) {

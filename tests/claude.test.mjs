@@ -35,55 +35,6 @@ test('every schema requires all its fields plus belirsiz and allows nothing else
   }
 });
 
-const TUTANAK_KEYS = ['AdSoyad', 'Tc', 'Ehliyet', 'AlindigiYer', 'Adres', 'Tel', 'Plaka'];
-
-test('kaza tutanağı: the two drivers and their plates, nothing else', () => {
-  const k = KINDS.tutanak;
-  assert.equal(k.label, 'Kaza tutanağı');
-  assert.deepEqual(k.fields.map((f) => f.key), [...TUTANAK_KEYS.map((x) => `a${x}`), ...TUTANAK_KEYS.map((x) => `b${x}`)]);
-  assert.deepEqual([...k.schema.required].sort(), [...k.fields.map((f) => f.key), 'belirsiz'].sort());
-  for (const words of ['Sürücü Bilgileri', 'Araç Bilgileri', '106408-B', 'belirsiz', 'kroki', 'imza']) assert.ok(k.prompt.includes(words), words);
-  assert.deepEqual(buildRequest('tutanak', [img]).output_config.format.schema, k.schema);
-});
-
-test('parseResponse (tutanak): TC, plate and name cleaned like the other documents, unreadable left empty', () => {
-  const r = parseResponse('tutanak', reply({
-    aAdSoyad: 'UĞURCAN KAYA', aTc: '100 000 001 46', aEhliyet: '482190-B', aAlindigiYer: 'Kadıköy', aAdres: 'Moda Cad. No 12',
-    aTel: '0532 418 27 90', aPlaka: '34nma887',
-    bAdSoyad: 'IŞIL İNCE', bTc: '12345678901', bEhliyet: '106408-B', bAlindigiYer: '', bAdres: '', bTel: '', bPlaka: '35 kr 77810',
-    belirsiz: ['bAdres', 'bTel', 'bilinmeyen'],
-  }));
-  assert.equal(r.fields.aTc, '10000000146');
-  assert.equal(r.fields.aPlaka, '34 NMA 887');
-  assert.equal(r.fields.aAdSoyad, 'Uğurcan Kaya');
-  assert.equal(r.fields.bAdSoyad, 'Işıl İnce');
-  assert.equal(r.fields.aTel, '05324182790', 'kept like the customer phone');
-  assert.equal(r.fields.aEhliyet, '482190-B');
-  assert.equal(r.fields.bAdres, '');
-  assert.equal(r.fields.bTel, '');
-  assert.ok(r.unclear.includes('bTc'), 'a TC that fails the checksum is flagged');
-  assert.ok(r.unclear.includes('bPlaka'), 'an impossible plate is flagged');
-  assert.ok(!r.unclear.includes('aTc') && !r.unclear.includes('aPlaka'));
-  assert.ok(r.unclear.includes('bAdres') && r.unclear.includes('bTel'));
-  assert.ok(!r.unclear.includes('bilinmeyen'));
-  assert.ok(!r.unclear.includes('aTel'));
-  assert.deepEqual(Object.keys(r.fields), KINDS.tutanak.fields.map((f) => f.key));
-});
-
-test('parseResponse (tutanak): the drivers\' phones in digits with the leading 0, a number that cannot be one is flagged', () => {
-  const blank = Object.fromEntries(KINDS.tutanak.fields.map((f) => [f.key, '']));
-  for (const said of ['05053776420', '0505 377 64 20', '+90 505 377 64 20', '5053776420', '(0505) 377-6420']) {
-    const r = parseResponse('tutanak', reply({ ...blank, aTel: said, bTel: said, belirsiz: [] }));
-    assert.equal(r.fields.aTel, '05053776420', said);
-    assert.equal(r.fields.bTel, '05053776420', said);
-    assert.deepEqual(r.unclear, [], said);
-  }
-  const odd = parseResponse('tutanak', reply({ ...blank, aTel: '0505 377 64 2', bTel: '0505 377 64 200', belirsiz: [] }));
-  assert.ok(odd.unclear.includes('aTel') && odd.unclear.includes('bTel'), 'a digit missing or one too many: check it');
-  const none = parseResponse('tutanak', reply({ ...blank, aTel: 'okunmuyor', belirsiz: ['aTel'] }));
-  assert.equal(none.fields.aTel, '', 'no digits, no phone');
-  assert.ok(none.unclear.includes('aTel'));
-});
 
 test('the sample answers (no API key) cover every document and read cleanly', async () => {
   const { mockClient } = await import('../app/js/ai/mock.js');

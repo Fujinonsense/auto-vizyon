@@ -20,59 +20,6 @@ test('folderSections: the five copy groups with formatted values and paths', () 
   assert.equal(s[2].rows.find((r) => r.path === 'ruhsat.tcVkn').label, 'TC / Vergi no');
 });
 
-test('folderSections: the accident report sections appear only once they have something', () => {
-  assert.equal(folderSections({ ...folder, tutanak: {} }).length, 5);
-  assert.equal(folderSections({ ...folder, tutanak: { aAdSoyad: ' ', bTel: '' } }).length, 5);
-  const onlyA = folderSections({ ...folder, tutanak: { aAdSoyad: 'Ali Veli' } });
-  assert.deepEqual(onlyA.map((s) => s.kind), ['musteri', 'arac', 'ruhsat', 'ehliyet', 'kimlik', 'tutanakA']);
-  const both = folderSections({ ...folder, tutanak: { aAdSoyad: 'Ali Veli', bTel: '0505 377 64 20' } });
-  assert.deepEqual(both.slice(5).map((s) => s.title), ['Tutanak\u00a0A', 'Tutanak\u00a0B'], 'the word and its letter never part on a narrow phone');
-});
-
-test('accident report B: rows in the agreed order, copy text without the empty ones', () => {
-  const tutanak = {
-    bPlaka: '35 KR 7781', bAdSoyad: 'Ayşe Kara', bTc: '19090909018', bEhliyet: '106408-B', bTel: '0505 377 64 20',
-    bAdres: 'Alsancak Mah. 1453 Sok. İzmir', bAlindigiYer: 'Konak',
-  };
-  const b = folderSections({ ...folder, tutanak }).find((s) => s.kind === 'tutanakB');
-  assert.deepEqual(b.rows.map((r) => [r.label, r.path]), [
-    ['Plaka', 'tutanak.bPlaka'], ['Ad Soyad', 'tutanak.bAdSoyad'], ['T.C. Kimlik No', 'tutanak.bTc'], ['Ehliyet', 'tutanak.bEhliyet'],
-    ['Telefon', 'tutanak.bTel'], ['Adres', 'tutanak.bAdres'], ['Alındığı yer', 'tutanak.bAlindigiYer'],
-  ]);
-  assert.equal(sectionCopyText(b.rows), [
-    'Plaka: 35 KR 7781', 'Ad Soyad: Ayşe Kara', 'T.C. Kimlik No: 19090909018', 'Ehliyet: 106408-B',
-    'Telefon: 0505 377 64 20', 'Adres: Alsancak Mah. 1453 Sok. İzmir', 'Alındığı yer: Konak',
-  ].join('\n'));
-  const partial = folderSections({ ...folder, tutanak: { bPlaka: '35 KR 7781', bTel: '0505 377 64 20' } }).find((s) => s.kind === 'tutanakB');
-  assert.equal(sectionCopyText(partial.rows), 'Plaka: 35 KR 7781\nTelefon: 0505 377 64 20');
-  assert.ok(folderCopyText({ ...folder, tutanak }).endsWith('\n\nTutanak B\nPlaka: 35 KR 7781\nAd Soyad: Ayşe Kara\nT.C. Kimlik No: 19090909018\nEhliyet: 106408-B\nTelefon: 0505 377 64 20\nAdres: Alsancak Mah. 1453 Sok. İzmir\nAlındığı yer: Konak'));
-});
-
-test('"Hepsini kopyala": each driver block starts with its heading, in plain text; the other blocks need none', () => {
-  const tutanak = {
-    aPlaka: '34 NMA 887', aAdSoyad: 'Uğurcan Kaya', aTel: '05324182790',
-    bPlaka: '35 KR 7781', bAdSoyad: 'Ayşe Kara', bTel: '05053776420',
-  };
-  const text = folderCopyText({ ...folder, tutanak });
-  assert.ok(text.startsWith('Ad soyad: Uğurcan Kaya\nTelefon: 0532 418 27 90\n\nPlaka: 34 NMA 887'), 'customer and car as before');
-  assert.ok(text.endsWith([
-    'Tutanak A', 'Plaka: 34 NMA 887', 'Ad Soyad: Uğurcan Kaya', 'Telefon: 0532 418 27 90', '',
-    'Tutanak B', 'Plaka: 35 KR 7781', 'Ad Soyad: Ayşe Kara', 'Telefon: 0505 377 64 20',
-  ].join('\n')));
-  assert.ok(!text.includes('\u00a0'), 'pastes as ordinary text');
-  assert.equal(text.match(/^Plaka:/gm).length, 3, 'three plates, each under its own heading');
-  const b = folderSections({ ...folder, tutanak }).find((s) => s.kind === 'tutanakB');
-  assert.ok(sectionCopyText(b.rows).startsWith('Plaka: 35 KR 7781'), '"Tümünü kopyala" of one block stays without a heading');
-});
-
-test('accident report phones are shown and copied like the customer phone', () => {
-  const s = folderSections({ ...folder, tutanak: { aTel: '05053776420', bTel: '5053776420' } });
-  const tel = (kind) => s.find((x) => x.kind === kind).rows.find((r) => r.label === 'Telefon');
-  assert.deepEqual(tel('tutanakA'), { label: 'Telefon', value: '0505 377 64 20', path: 'tutanak.aTel' });
-  assert.equal(tel('tutanakB').value, '0505 377 64 20', 'a number the sheet stripped of its 0 too');
-  assert.equal(sectionCopyText(s.find((x) => x.kind === 'tutanakA').rows), 'Telefon: 0505 377 64 20');
-});
-
 test('sectionCopyText: "Label: value" lines, empty values left out', () => {
   assert.equal(
     sectionCopyText([{ label: 'Plaka', value: '34 NMA 887' }, { label: 'Şase no', value: '' }, { label: 'Model yılı', value: '2019' }]),
@@ -121,4 +68,10 @@ test('waLink: Turkish mobile number and the ready message', () => {
 test('telLink: dialable number or nothing', () => {
   assert.equal(telLink('0532 418 27 90'), 'tel:05324182790');
   assert.equal(telLink(''), '');
+});
+
+test('legacy accident report data never appears in copy sections or shared text', () => {
+  const legacy = { ...folder, tutanak: { aAdSoyad: 'SECRET', bTel: '05053776420' }, aiFilled: ['tutanak.aAdSoyad'], unclear: ['tutanak.bTel'] };
+  assert.deepEqual(folderSections(legacy), folderSections(folder));
+  assert.equal(folderCopyText(legacy), folderCopyText(folder));
 });

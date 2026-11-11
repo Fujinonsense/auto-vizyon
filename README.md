@@ -4,7 +4,6 @@ Boyasız göçük onarım ustası için iPhone uygulaması. Capacitor ile iOS'a 
 
 - Uygulama içi kamera: araç, hasar öncesi/sonrası, ruhsat, ehliyet, kimlik.
 - Claude (Anthropic) plakayı ve belgeleri okur; her bilginin yanında kopyala düğmesi.
-- Kaza tutanağı: Claude sadece A/B sürücü bilgilerini ve plakaları okur.
 - İşler, KDV, ödeme takibi, aylık kazanç, Excel'e aktarma ve Excel'den alma.
 - Maliyet kalemleri (dış işçilik, boya, yedek parça…) ve KDV hariç kâr; Kazanç'ta aylık maliyet ve kâr.
 - Fatura takibi: Fatura kesildi / Fatura kesilmedi rozetleri, listede Faturasız süzgeci.

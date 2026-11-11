@@ -78,38 +78,15 @@ afterEach(() => {
   Object.defineProperty(globalThis, 'navigator', realNavigator);
 });
 
-test('document camera: the accident report gets the upright page guide and a whole-page hint', () => {
-  assert.deepEqual(docCameraOptions('tutanak'), {
-    title: 'Kaza tutanağı fotoğrafı', hint: 'Tutanağın tamamını çerçeveye al', multi: true, doneText: 'Oku', frame: 'page',
-  });
-});
-
 test('document camera: ruhsat, ehliyet and kimlik keep their guides and hint', () => {
   assert.deepEqual(docCameraOptions('ruhsat'), { title: 'Ruhsat fotoğrafı', hint: BACK_TOO, multi: true, doneText: 'Oku', frame: 'doc' });
   assert.deepEqual(docCameraOptions('ehliyet'), { title: 'Ehliyet fotoğrafı', hint: BACK_TOO, multi: true, doneText: 'Oku', frame: 'card' });
   assert.deepEqual(docCameraOptions('kimlik'), { title: 'Kimlik fotoğrafı', hint: BACK_TOO, multi: true, doneText: 'Oku', frame: 'card' });
 });
 
-test('the page guide is an upright A4 that fits the view, drawn like the other guides', () => {
-  const css = readFileSync(new URL('../app/css/app.css', import.meta.url), 'utf8');
-  const rule = (sel) => {
-    const body = css.match(new RegExp(`^${sel.replaceAll('.', '\\.')} \\{([^}]*)\\}`, 'm'))?.[1];
-    assert.ok(body, `${sel} is in app.css`);
-    return Object.fromEntries(body.split(';').map((d) => d.split(':').map((x) => x.trim())).filter(([k]) => k));
-  };
-  const page = rule('.cam-frame.page');
-  const [w, hgt = 1] = page['aspect-ratio'].split('/').map(Number);
-  assert.ok(Math.abs(w / hgt - 210 / 297) < 0.001, `A4 upright, got ${page['aspect-ratio']}`);
-  assert.ok(parseFloat(page.height) <= 90 && page.height.endsWith('%'), 'sized by the view height, so the whole page stays in view');
-  assert.ok(parseFloat(page['max-width']) <= 84 && page['max-width'].endsWith('%'), 'never wider than the other guides');
-  assert.deepEqual(Object.keys(page).filter((k) => /^(border|box-shadow|outline|background)/.test(k)), [], 'stroke, corners and shade come from .cam-frame');
-  assert.equal(rule('.cam-frame.doc')['aspect-ratio'], '1.42');
-  assert.equal(rule('.cam-frame.card')['aspect-ratio'], '1.586');
-});
-
 test('camera: the guide asked for is drawn over the preview, none for the car', async () => {
   const dom = fakeDom();
-  for (const frame of ['page', 'doc', 'card', undefined]) {
+  for (const frame of ['doc', 'card', undefined]) {
     const open = openCamera({ title: 'Fotoğraf', frame });
     const overlay = dom.body.children.at(-1);
     assert.deepEqual(byClass(overlay, 'cam-frame').map((n) => n.className), frame ? [`cam-frame ${frame}`] : []);
@@ -119,9 +96,9 @@ test('camera: the guide asked for is drawn over the preview, none for the car', 
   }
 });
 
-test('camera: a shot is the whole camera picture, never cut to the guide, so the whole report is kept', async () => {
+test('camera: a shot is the whole camera picture, never cut to the guide, so the whole document is kept', async () => {
   const dom = fakeDom();
-  const open = openCamera(docCameraOptions('tutanak'));
+  const open = openCamera(docCameraOptions('ruhsat'));
   const overlay = dom.body.children.at(-1);
   await tick();
   const [video] = byClass(overlay, 'cam-video');

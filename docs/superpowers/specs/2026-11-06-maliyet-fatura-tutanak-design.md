@@ -1,3 +1,5 @@
+Kaza tutanağı bölümü, dükkân sahibinin isteğiyle 2026-11-11 tarihinde kaldırıldı.
+
 # Job costs, invoice flag and accident report (design)
 
 Date: 2026-11-06. Status: decided (the owner's son handed the remaining choices to the builder; every choice below that he did not state is marked *builder's call*).

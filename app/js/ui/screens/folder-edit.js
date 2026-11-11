@@ -13,16 +13,12 @@ import { jobFields } from '../job-fields.js';
 import { openCamera } from '../../media/camera.js';
 import { prepareImage } from '../../media/image.js';
 
-const DOCS = ['ruhsat', 'ehliyet', 'kimlik', 'tutanak'];
-// The accident report is left out: an accident belongs to one visit.
+const DOCS = ['ruhsat', 'ehliyet', 'kimlik'];
 const COPY_FROM_EXISTING = ['name', 'phone', 'brand', 'model', 'modelFull', 'color', 'modelYear', 'vin', 'engineNo', 'ruhsat', 'ehliyet', 'kimlik'];
-// Typed and shown like the customer's phone.
-const DRIVER_PHONES = ['tutanak.aTel', 'tutanak.bTel'];
 
 export function folderForm(draft, ctx, { autoDoc } = {}) {
   const f = draft.folder;
   if (f.phone) f.phone = formatPhone(f.phone);
-  for (const path of DRIVER_PHONES) if (getPath(f, path)) setPath(f, path, formatPhone(getPath(f, path)));
   const scope = urlScope();
   const fields = new Map();
   let dirty = draft.mode === 'new';
@@ -53,7 +49,7 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
     if (!x) return;
     const v = getPath(f, path) || '';
     if (document.activeElement !== x.input && x.input.value !== v) x.input.value = v;
-    // Marked by the AI: unsure of what it wrote, or (the accident report) left it empty, unreadable.
+    // Marked by the AI as unsure of what it wrote.
     const unclear = (f.unclear || []).includes(path);
     x.wrap.classList.toggle('ai', !!v && (f.aiFilled || []).includes(path));
     x.wrap.classList.toggle('unclear', unclear);
@@ -97,16 +93,6 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
   const fold = (kind, title, children) => h('details', { class: 'card section form-sec', 'data-kind': kind, open: hasData(kind) },
     h('summary', { class: 'section-head' }, h('h3', {}, title), icon('chevron-down', 22)), h('div', { class: 'stack' }, children));
   const hasData = (kind) => Object.values(f[kind] || {}).some(Boolean);
-  // One driver of the accident report (d is "a" or "b"), same order as on the folder screen.
-  const driverFields = (d) => [
-    field('Plaka', `tutanak.${d}Plaka`, { placeholder: '34 ABC 123', caps: 'characters', clean: normalizePlate }),
-    field('Ad Soyad', `tutanak.${d}AdSoyad`),
-    field('T.C. Kimlik No', `tutanak.${d}Tc`, { inputmode: 'numeric', caps: 'off' }),
-    field('Ehliyet', `tutanak.${d}Ehliyet`, { placeholder: '106408-B', caps: 'characters' }),
-    field('Telefon', `tutanak.${d}Tel`, { type: 'tel', inputmode: 'tel', placeholder: '05xx xxx xx xx', caps: 'off', clean: formatPhone }),
-    field('Adres', `tutanak.${d}Adres`),
-    field('Alındığı yer', `tutanak.${d}AlindigiYer`)];
-
   // ---------- photos (new car only) ----------
   const photoHead = h('div', { class: 'photo-head' });
   function renderPhotos() {
@@ -205,7 +191,6 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
   function onRead(kind) {
     const st = draft.reads[kind];
     if (st?.state === 'done') {
-      for (const path of DRIVER_PHONES) if (st.changed.includes(path)) setPath(f, path, formatPhone(getPath(f, path)));
       st.changed.forEach((p) => paint(p, true));
       [...fields.keys()].forEach((p) => paint(p));
       form.querySelectorAll('details[data-kind]').forEach((d) => { if (hasData(d.dataset.kind)) d.open = true; });
@@ -287,10 +272,7 @@ export function folderForm(draft, ctx, { autoDoc } = {}) {
       field('Ad soyad', 'kimlik.adSoyad'),
       field('TC kimlik no', 'kimlik.tc', { inputmode: 'numeric', caps: 'off' }),
       h('div', { class: 'grid2' }, field('Doğum tarihi', 'kimlik.dogumTarihi', { inputmode: 'numeric' }), field('Seri no', 'kimlik.seriNo', { caps: 'characters' })),
-      field('Son geçerlilik', 'kimlik.gecerlilik', { inputmode: 'numeric' })]),
-    // No-break spaces, as on the folder screen: the word and its letter stay together.
-    fold('tutanak', 'Tutanak\u00a0A', driverFields('a')),
-    fold('tutanak', 'Tutanak\u00a0B', driverFields('b')));
+      field('Son geçerlilik', 'kimlik.gecerlilik', { inputmode: 'numeric' })]));
 
   if (draft.mode === 'new') {
     getSettings().then((s) => {

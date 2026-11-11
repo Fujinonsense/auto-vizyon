@@ -6,6 +6,7 @@ import { shareFiles } from '../native.js';
 
 export const KIND_LABEL = {
   arac: 'Araç', once: 'Hasar öncesi', sonra: 'Hasar sonrası', ruhsat: 'Ruhsat', ehliyet: 'Ehliyet', kimlik: 'Kimlik',
+  // Legacy photos only: this kind can no longer be created.
   tutanak: 'Kaza tutanağı',
 };
 

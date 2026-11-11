@@ -50,7 +50,7 @@ test('the folder list filters wrap onto a second row, so "Faturasız" is never o
   }
 });
 
-test('"Belge ekle" buttons (Kaza tutanağı too) and the cost category chips are at least 48px tall', () => {
+test('"Belge ekle" buttons and the cost category chips are at least 48px tall', () => {
   assert.ok(px(rule('.add-docs .btn')['min-height']) >= 48);
   assert.ok(px(rule('.chips.wrap.cost-cats .chip')['min-height']) >= 48);
   assert.ok(px(rule('.cost-box > .btn.small')['min-height']) >= 48, '"Masraf ekle"');
@@ -68,7 +68,7 @@ test('"Fatura kesilmedi" reads at AA contrast in the light theme; the dark theme
   assert.equal(rule('.doc-row.err .grow > span').color, 'var(--warn)');
 });
 
-test('next to a section title that keeps its line ("Tutanak A"), the copy button wraps its own words neatly', () => {
+test('next to a section title that keeps its line ("Ruhsat"), the copy button wraps its own words neatly', () => {
   const btn = rule('.section-head .btn');
   assert.equal(btn['white-space'], 'normal');
   assert.equal(btn['text-align'], 'center');

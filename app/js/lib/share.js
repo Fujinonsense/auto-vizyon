@@ -2,19 +2,6 @@
 import { getPath } from './merge-ai.js';
 import { formatPhone, normalizePhone, waNumber } from './format.js';
 
-// One driver of the accident report (d is "a" or "b"), in the order an insurance form asks.
-const driverRows = (d) => [
-  ['Plaka', `tutanak.${d}Plaka`], ['Ad Soyad', `tutanak.${d}AdSoyad`], ['T.C. Kimlik No', `tutanak.${d}Tc`],
-  ['Ehliyet', `tutanak.${d}Ehliyet`], ['Telefon', `tutanak.${d}Tel`], ['Adres', `tutanak.${d}Adres`],
-  ['Alındığı yer', `tutanak.${d}AlindigiYer`],
-];
-
-// The two drivers' blocks: shown only once something is in them (the others are always listed, empty or
-// not), and in "Hepsini kopyala" each starts with its title, as both have the same labels.
-const DRIVERS = new Set(['tutanakA', 'tutanakB']);
-// The customer's and the two drivers' phones: one number kept as digits and shown spaced, anything else as typed.
-const PHONES = new Set(['phone', 'tutanak.aTel', 'tutanak.bTel']);
-
 const SECTIONS = [
   ['musteri', 'Müşteri', [['Ad soyad', 'name'], ['Telefon', 'phone']]],
   ['arac', 'Araç', [
@@ -33,9 +20,6 @@ const SECTIONS = [
     ['Ad soyad', 'kimlik.adSoyad'], ['TC kimlik no', 'kimlik.tc'], ['Doğum tarihi', 'kimlik.dogumTarihi'],
     ['Seri no', 'kimlik.seriNo'], ['Son geçerlilik', 'kimlik.gecerlilik'],
   ]],
-  // A no-break space: on a narrow phone "Tutanak" and its letter stay on one line.
-  ['tutanakA', 'Tutanak\u00a0A', driverRows('a')],
-  ['tutanakB', 'Tutanak\u00a0B', driverRows('b')],
 ];
 
 export function folderSections(folder) {
@@ -44,9 +28,9 @@ export function folderSections(folder) {
     title,
     rows: rows.map(([label, path]) => {
       const raw = String(getPath(folder, path) ?? '').trim();
-      return { label, value: PHONES.has(path) ? formatPhone(raw) : raw, path };
+      return { label, value: path === 'phone' ? formatPhone(raw) : raw, path };
     }),
-  })).filter((s) => !DRIVERS.has(s.kind) || s.rows.some((r) => r.value));
+  }));
 }
 
 export function sectionCopyText(rows) {
@@ -54,10 +38,7 @@ export function sectionCopyText(rows) {
 }
 
 export function folderCopyText(folder) {
-  return folderSections(folder).map((s) => {
-    const text = sectionCopyText(s.rows);
-    return text && DRIVERS.has(s.kind) ? `${s.title.replace(/\u00a0/g, ' ')}\n${text}` : text;
-  }).filter(Boolean).join('\n\n');
+  return folderSections(folder).map((s) => sectionCopyText(s.rows)).filter(Boolean).join('\n\n');
 }
 
 // Names read off a document come in capitals; a greeting writes them the Turkish way (IŞIL → Işıl).

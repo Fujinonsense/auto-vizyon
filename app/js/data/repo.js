@@ -49,7 +49,7 @@ export async function saveFolder(partial) {
   const prev = partial.id ? await get('folders', partial.id) : undefined;
   const folder = {
     name: '', phone: '', plate: '', brand: '', model: '', modelFull: '', color: '', modelYear: '',
-    vin: '', engineNo: '', note: '', ruhsat: {}, ehliyet: {}, kimlik: {}, tutanak: {}, unclear: [],
+    vin: '', engineNo: '', note: '', ruhsat: {}, ehliyet: {}, kimlik: {}, unclear: [],
     ...prev,
     ...partial,
     id: partial.id || newId(),
@@ -60,6 +60,11 @@ export async function saveFolder(partial) {
     createdAt: prev?.createdAt || Date.now(),
     updatedAt: nextStamp(prev),
   };
+  // Keep retired document marks with the stored legacy data, including on a new visit.
+  for (const key of ['aiFilled', 'unclear']) {
+    const legacy = (prev?.[key] || []).filter((p) => p.startsWith('tutanak.'));
+    if (legacy.length) folder[key] = [...new Set([...(folder[key] || []), ...legacy])];
+  }
   folder.plateKey = plateKey(folder.plate);
   await write(['folders', 'outbox'], (s) => {
     s.folders.put(folder);
@@ -272,7 +277,7 @@ export async function applyRemote({ folders = [], jobs = [] }) {
     for (const f of folders) {
       s.folders.get(f.id).onsuccess = (e) => {
         const merged = {
-          ruhsat: {}, ehliyet: {}, kimlik: {}, tutanak: {}, unclear: [], coverPhotoId: null, coverThumb: null,
+          ruhsat: {}, ehliyet: {}, kimlik: {}, unclear: [], coverPhotoId: null, coverThumb: null,
           ...e.target.result,
           ...f,
         };

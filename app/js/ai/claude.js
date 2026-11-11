@@ -1,7 +1,7 @@
 // Reads plates and documents with Claude, straight from the phone (official SDK, browser build).
 import { SYSTEM, KINDS } from './schemas.js';
 import { normalizePlate, isValidPlate, normalizeVin, isValidVin, isValidTc } from '../lib/validate.js';
-import { trTitle, latinTitle, cleanPhone } from '../lib/format.js';
+import { trTitle, latinTitle } from '../lib/format.js';
 import { blobToBase64 } from '../media/image.js';
 
 // Always this model: the app offers no cheaper one to choose by mistake.
@@ -45,11 +45,9 @@ export function buildRequest(kind, images) {
 }
 
 const LATIN = ['marka', 'model'];
-const NAMES = ['adSoyad', 'sahibiAdSoyad', 'renk', 'aAdSoyad', 'bAdSoyad'];
-// The accident report has a plate, a TC and a phone for each of its two drivers.
-const PLATES = ['plaka', 'aPlaka', 'bPlaka'];
-const TCS = ['tc', 'aTc', 'bTc'];
-const PHONES = ['aTel', 'bTel'];
+const NAMES = ['adSoyad', 'sahibiAdSoyad', 'renk'];
+const PLATES = ['plaka'];
+const TCS = ['tc'];
 
 function normalize(kind, data) {
   const unclear = new Set(Array.isArray(data.belirsiz) ? data.belirsiz : []);
@@ -69,13 +67,6 @@ function normalize(kind, data) {
     if (!fields[key]) continue;
     fields[key] = fields[key].replace(/\D/g, '');
     flag(key, isValidTc(fields[key]));
-  }
-  // Kept like the customer's phone ("05053776420"); a Turkish number is 0 and ten digits. Anything else
-  // (an extension, two numbers) stays as read, marked for a look.
-  for (const key of PHONES) {
-    if (!fields[key]) continue;
-    fields[key] = cleanPhone(fields[key]);
-    flag(key, /^0[1-9]\d{9}$/.test(fields[key]));
   }
   if (fields.tcVkn) {
     fields.tcVkn = fields.tcVkn.replace(/\D/g, '');

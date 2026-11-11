@@ -34,10 +34,8 @@ test('new columns sit at the end of both sheets, so rows already in the sheet do
     'Ticari Adı', 'Ruhsat Sahibi', 'Ruhsat TC/VKN', 'Belge Seri No', 'Tescil Tarihi', 'Ruhsat Tipi', 'Ehliyet Ad Soyad',
     'Ehliyet TC', 'Ehliyet No', 'Ehliyet Sınıfı', 'Ehliyet Veriliş', 'Ehliyet Doğum Tarihi', 'Kimlik Ad Soyad', 'Kimlik TC',
     'Kimlik Doğum Tarihi', 'Kimlik Seri No', 'Kimlik Geçerlilik', 'Drive Klasörü', 'Not', 'Güncellendi', 'Klasör No']);
-  assert.deepEqual(folders.slice(30), [
-    'Tutanak A Ad Soyad', 'Tutanak A TC', 'Tutanak A Ehliyet', 'Tutanak A Alındığı Yer', 'Tutanak A Adres', 'Tutanak A Telefon', 'Tutanak A Plaka',
-    'Tutanak B Ad Soyad', 'Tutanak B TC', 'Tutanak B Ehliyet', 'Tutanak B Alındığı Yer', 'Tutanak B Adres', 'Tutanak B Telefon', 'Tutanak B Plaka',
-  ]);
+  assert.deepEqual(folders.slice(30), []);
+  assert.ok(folders.every((h) => !h.startsWith('Tutanak')));
 });
 
 test('kurulum formats Maliyet as money like the other money columns, the new text columns as text', () => {
@@ -50,8 +48,6 @@ test('kurulum formats Maliyet as money like the other money columns, the new tex
   assert.equal(format('İşler', 'Maliyet'), format('İşler', 'Toplam (KDV Dahil)'));
   assert.equal(format('İşler', 'Maliyet Kalemleri'), '@');
   assert.equal(format('İşler', 'Fatura'), '@');
-  assert.equal(format('Müşteriler', 'Tutanak A TC'), '@');
-  assert.equal(format('Müşteriler', 'Tutanak B Plaka'), '@');
 });
 
 test('kurulum creates the sheets with headers and a token', () => {
