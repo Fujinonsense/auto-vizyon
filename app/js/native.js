@@ -22,18 +22,20 @@ export async function shareFiles(files, title) {
     try {
       await cap.nativePromise('Share', 'share', { title, files: uris });
     } catch (e) {
-      if (!/cancel/i.test(e?.message || '')) throw e;
+      if (/cancel/i.test(e?.message || '')) return false;
+      throw e;
     }
-    return;
+    return true;
   }
 
   const list = files.map((f) => new File([f.blob], f.name, { type: f.blob.type }));
   if (navigator.canShare?.({ files: list })) {
     try {
       await navigator.share({ files: list, title });
-      return;
+      return true;
     } catch (e) {
-      if (e?.name === 'AbortError') return;
+      if (e?.name === 'AbortError') return false;
+      throw e;
     }
   }
   for (const f of list) {
@@ -44,4 +46,5 @@ export async function shareFiles(files, title) {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
+  return true;
 }

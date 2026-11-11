@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, verify } from 'node:crypto';
-import { makeJwt, ascClient, distribute, lookAfter } from '../tools/testflight.mjs';
+import { makeJwt, ascClient, distribute, lookAfter, WHATS_NEW } from '../tools/testflight.mjs';
 
 const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
 const p8 = privateKey.export({ type: 'pkcs8', format: 'pem' });
@@ -474,4 +474,8 @@ test('no valid build left at all stops the follow-up run', async () => {
   await assert.rejects(look(fakeApi({ builds: [] }).api), /geçerli derleme yok/);
   const onlyProcessing = [listed('10', { processingState: 'PROCESSING', external: 'PROCESSING' })];
   await assert.rejects(look(fakeApi({ builds: onlyProcessing }).api), /geçerli derleme yok/);
+});
+
+test('release notes describe the chosen photos, camera recovery and removed accident report', () => {
+  assert.equal(WHATS_NEW, "Yeni sürüm. Fotoğrafları seçip WhatsApp'ta paylaş; belge kamerası daha sağlam; kaza tutanağı kaldırıldı.");
 });

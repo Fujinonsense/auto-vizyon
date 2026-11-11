@@ -26,7 +26,7 @@ const DAY = 86_400_000;
 // A TestFlight build stops opening 90 days after upload. Alarm well before that, and before GitHub
 // would switch the schedules off after 60 days without a commit.
 const MAX_AGE_DAYS = 45;
-const WHATS_NEW = 'Yeni sürüm. Aracı çek, plaka okunur; klasördeki WhatsApp düğmesi "aracınız hazır" mesajını hazırlar; iş, KDV ve ödeme takibi.';
+export const WHATS_NEW = 'Yeni sürüm. Fotoğrafları seçip WhatsApp\'ta paylaş; belge kamerası daha sağlam; kaza tutanağı kaldırıldı.';
 const b64url = (obj) => Buffer.from(JSON.stringify(obj)).toString('base64url');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 

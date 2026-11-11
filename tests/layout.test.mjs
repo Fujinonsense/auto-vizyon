@@ -115,3 +115,15 @@ test('the cost kind chips come up under the top bar (and the notch) when Kaydet 
   assert.match(margin, /env\(safe-area-inset-top\)/);
   assert.ok(px(/(\d+)px/.exec(margin)[1]) >= 64, 'below the 64px top bar');
 });
+
+test('photo picker uses an inner scroller, bottom safe area, theme tokens and 48px targets', () => {
+  assert.equal(rule('.photo-picker-sheet')['overflow'], 'hidden');
+  assert.equal(rule('.photo-picker-groups')['overflow-y'], 'auto');
+  assert.match(rule('.photo-picker-footer').padding, /env\(safe-area-inset-bottom\)/);
+  assert.ok(px(rule('.photo-choice')['min-height']) >= 48);
+  assert.ok(px(rule('.photo-choice')['min-width']) >= 48);
+  assert.ok(px(rule('.photo-picker-footer .btn')['min-height']) >= 48);
+  assert.match(rule('.photo-choice[aria-pressed="true"]').outline, /var\(--gold-ink\)/);
+  for (const theme of [light, dark]) assert.ok(contrast(theme['--gold-ink'], theme['--surface']) >= 3);
+  assert.equal(px(rule('body').font), 17);
+});

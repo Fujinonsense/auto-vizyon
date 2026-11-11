@@ -8,13 +8,12 @@ import { plateChip, urlScope, statusBadge, invoiceBadge } from '../parts.js';
 import { setTopbar, setTab } from '../chrome.js';
 import { go } from '../router.js';
 import { openJobSheet } from '../job-edit.js';
-import { openPhotoViewer, sharePhotos } from '../photo-viewer.js';
+import { openPhotoViewer } from '../photo-viewer.js';
+import { openPhotoShare, PHOTO_GROUPS as GROUPS } from '../photo-share.js';
 import { openCamera } from '../../media/camera.js';
 import { prepareImage } from '../../media/image.js';
 
 const COVER_KINDS = ['arac', 'once', 'sonra'];
-// Legacy tutanak photos remain visible; this kind can no longer be created.
-const GROUPS = [['Araç', ['arac']], ['Hasar öncesi', ['once']], ['Hasar sonrası', ['sonra']], ['Belgeler', ['ruhsat', 'ehliyet', 'kimlik', 'tutanak']]];
 
 function quick(label, ic, attrs) {
   return h(attrs.href ? 'a' : 'button', { class: 'qa-btn', type: attrs.href ? null : 'button', ...attrs }, icon(ic, 26), h('span', {}, label));
@@ -131,7 +130,7 @@ export async function folderView({ id }, ctx) {
     // Photos
     const photoSec = h('section', { class: 'card section' },
       h('div', { class: 'section-head' }, h('h3', {}, 'Fotoğraflar'),
-        photos.length > 0 && h('button', { class: 'btn small ghost', type: 'button', onclick: () => sharePhotos(gallery, folder) }, icon('share', 18), h('span', {}, 'Hepsini paylaş'))),
+        gallery.length > 0 && h('button', { class: 'btn small ghost', type: 'button', onclick: () => openPhotoShare(gallery, folder) }, icon('brand-whatsapp', 18), h('span', {}, "WhatsApp'ta paylaş"))),
       GROUPS.map(([label, kinds]) => {
         const ps = photos.filter((p) => kinds.includes(p.kind));
         return ps.length > 0 && h('div', { class: 'pgroup' }, h('span', { class: 'muted small' }, label),

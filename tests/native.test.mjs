@@ -31,10 +31,11 @@ afterEach(() => {
 
 test('in the iPhone app, files are written to the cache and shared by their file URLs', async () => {
   const calls = fakeBridge();
-  await shareFiles([
+  const completed = await shareFiles([
     { name: '34NMA887-1.jpg', blob: new Blob(['jpg']) },
     { name: '34NMA887-2.jpg', blob: new Blob(['jp2']) },
   ], 'Uğurcan Kaya');
+  assert.equal(completed, true);
   assert.deepEqual(calls, [
     { plugin: 'Filesystem', method: 'writeFile', options: { path: '34NMA887-1.jpg', data: btoa('jpg'), directory: 'CACHE' } },
     { plugin: 'Filesystem', method: 'writeFile', options: { path: '34NMA887-2.jpg', data: btoa('jp2'), directory: 'CACHE' } },
@@ -51,13 +52,13 @@ test('in the iPhone app, a large file survives the base64 round trip', async () 
 
 test('in the iPhone app, closing the share sheet is not an error', async () => {
   fakeBridge({ cancel: true });
-  await shareFiles([{ name: 'a.json', blob: new Blob(['{}']) }], 'a.json');
+  assert.equal(await shareFiles([{ name: 'a.json', blob: new Blob(['{}']) }], 'a.json'), false);
 });
 
 test('in a browser that can share files, the Web Share API gets them', async () => {
   let shared = null;
   fakeNavigator({ canShare: ({ files }) => files.length > 0, share: async (data) => { shared = data; } });
-  await shareFiles([{ name: 'a.xlsx', blob: new Blob(['x'], { type: 'text/plain' }) }], 'Excel');
+  assert.equal(await shareFiles([{ name: 'a.xlsx', blob: new Blob(['x'], { type: 'text/plain' }) }], 'Excel'), true);
   assert.equal(shared.title, 'Excel');
   assert.equal(shared.files[0].name, 'a.xlsx');
   assert.equal(shared.files[0].type, 'text/plain');
@@ -67,6 +68,24 @@ test('in a browser without file sharing, each file is downloaded', async () => {
   fakeNavigator({});
   const clicked = [];
   globalThis.document = { createElement: () => ({ click() { clicked.push(this.download); } }) };
-  await shareFiles([{ name: 'a.jpg', blob: new Blob(['1']) }, { name: 'b.jpg', blob: new Blob(['2']) }], 'Fotoğraflar');
+  assert.equal(await shareFiles([{ name: 'a.jpg', blob: new Blob(['1']) }, { name: 'b.jpg', blob: new Blob(['2']) }], 'Fotoğraflar'), true);
   assert.deepEqual(clicked, ['a.jpg', 'b.jpg']);
+});
+
+test('web cancellation returns false; other share errors are reported to the caller', async () => {
+  const files = [{ name: 'a.jpg', blob: new Blob(['jpg']) }];
+  fakeNavigator({ canShare: () => true, share: async () => { throw Object.assign(new Error(), { name: 'AbortError' }); } });
+  assert.equal(await shareFiles(files, 'Fotoğraflar'), false);
+  const error = new Error('unavailable');
+  navigator.share = async () => { throw error; };
+  await assert.rejects(shareFiles(files, 'Fotoğraflar'), (e) => e === error);
+});
+
+test('native failure is reported and sharePhotos forwards completed and cancelled results', async () => {
+  const { sharePhotos } = await import('../app/js/ui/photo-viewer.js');
+  const photos = [{ blob: new Blob(['jpg']) }];
+  fakeBridge(); assert.equal(await sharePhotos(photos, { plate: '34 ABC 123' }), true);
+  fakeBridge({ cancel: true }); assert.equal(await sharePhotos(photos), false);
+  Capacitor.nativePromise = async () => { throw new Error('disk full'); };
+  await assert.rejects(shareFiles([{ name: 'a.jpg', blob: photos[0].blob }]), /disk full/);
 });
