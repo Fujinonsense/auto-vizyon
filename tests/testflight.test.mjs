@@ -476,6 +476,6 @@ test('no valid build left at all stops the follow-up run', async () => {
   await assert.rejects(look(fakeApi({ builds: onlyProcessing }).api), /geçerli derleme yok/);
 });
 
-test('release notes describe the chosen photos, camera recovery and removed accident report', () => {
-  assert.equal(WHATS_NEW, "Yeni sürüm. Fotoğrafları seçip WhatsApp'ta paylaş; ehliyet ve kimlik kamerasında çerçevenin içi artık beyaz kalmıyor; kaza tutanağı kaldırıldı.");
+test('release notes describe the three share buttons and every tap up to the app', () => {
+  assert.equal(WHATS_NEW, "Yeni sürüm. Klasörde üç paylaşım düğmesi var: WhatsApp, Mail ve Gmail. Birine bas, fotoğrafları seç, Paylaş'a bas, açılan menüde o uygulamaya dokun.");
 });

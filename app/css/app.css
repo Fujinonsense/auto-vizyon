@@ -795,6 +795,14 @@ button.photo-main { display: grid; place-content: center; justify-items: center;
 /* Up to four document buttons: they keep their words on one line and wrap to a second row. */
 .add-docs .btn-row { display: flex; flex-wrap: wrap; }
 .add-docs .btn { flex: 1 1 auto; white-space: nowrap; min-height: 48px; }
+/* "Fotoğrafları gönder": WhatsApp, Mail and Gmail share one row in equal thirds (.btn-row) from 320 px up. A third
+   has no room for an icon beside "WhatsApp" (the icon is squeezed away), so each icon sits over its word. */
+.photo-send { display: grid; gap: 8px; margin-bottom: 12px; }
+.photo-send .btn { flex-direction: column; gap: 2px; min-height: 48px; padding: 4px 0; line-height: 1.2; }
+/* Below 360 px a pill's round ends would cut into "WhatsApp": the corners round like the app's other buttons. */
+@media (max-width: 359px) {
+  .photo-send .btn { border-radius: var(--radius); }
+}
 .pgroup { display: grid; gap: 6px; margin-bottom: 12px; }
 .pgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .pthumb { padding: 0; border: 0; border-radius: 10px; overflow: hidden; aspect-ratio: 1; background: var(--surface-2); cursor: zoom-in; }

@@ -69,8 +69,8 @@ class FakeElement extends FakeNode {
         return on;
       },
     };
-    // icon(): <template> parses the svg markup; here it simply hands out an svg element.
-    if (this.tagName === 'TEMPLATE') this.content = { get firstChild() { return new FakeElement('svg', doc); } };
+    // icon(): <template> parses the svg markup; here it simply hands out an svg element that keeps that markup.
+    if (this.tagName === 'TEMPLATE') this.content = { get firstChild() { return Object.assign(new FakeElement('svg', doc), { markup: el.innerHTML }); } };
   }
 
   get id() { return this.attributes.get('id') ?? ''; }

@@ -9,7 +9,7 @@ import { setTopbar, setTab } from '../chrome.js';
 import { go } from '../router.js';
 import { openJobSheet } from '../job-edit.js';
 import { openPhotoViewer } from '../photo-viewer.js';
-import { openPhotoShare, PHOTO_GROUPS as GROUPS } from '../photo-share.js';
+import { openPhotoShare, PHOTO_GROUPS as GROUPS, SHARE_TARGETS } from '../photo-share.js';
 import { openCamera } from '../../media/camera.js';
 import { prepareImage } from '../../media/image.js';
 
@@ -127,10 +127,15 @@ export async function folderView({ id }, ctx) {
       h('div', { class: 'btn-row' }, missing.map((s) => h('button', { class: 'btn small', type: 'button', onclick: () => go(`/klasor/${id}/belge/${s.kind}`) },
         h('img', { class: 'btn-art', src: `img/ic-${s.kind}.webp`, alt: '' }), s.title))));
 
-    // Photos
+    // Photos: under the title, one button per app to send them with (each picks photos, then the phone's share menu).
+    const sendPhotos = gallery.length > 0 && h('div', { class: 'photo-send' },
+      h('span', { class: 'muted small' }, 'Fotoğrafları gönder'),
+      h('div', { class: 'btn-row' }, Object.entries(SHARE_TARGETS).map(([target, t]) => h('button', {
+        class: 'btn small', type: 'button', 'aria-label': t.title, onclick: () => openPhotoShare(gallery, folder, { target }),
+      }, icon(t.icon, 18), h('span', {}, t.label)))));
     const photoSec = h('section', { class: 'card section' },
-      h('div', { class: 'section-head' }, h('h3', {}, 'Fotoğraflar'),
-        gallery.length > 0 && h('button', { class: 'btn small ghost', type: 'button', onclick: () => openPhotoShare(gallery, folder) }, icon('brand-whatsapp', 18), h('span', {}, "WhatsApp'ta paylaş"))),
+      h('div', { class: 'section-head' }, h('h3', {}, 'Fotoğraflar')),
+      sendPhotos,
       GROUPS.map(([label, kinds]) => {
         const ps = photos.filter((p) => kinds.includes(p.kind));
         return ps.length > 0 && h('div', { class: 'pgroup' }, h('span', { class: 'muted small' }, label),

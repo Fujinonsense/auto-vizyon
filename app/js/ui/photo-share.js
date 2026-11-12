@@ -6,7 +6,18 @@ import { sharePhotos } from './photo-viewer.js';
 // Legacy tutanak photos stay under Belgeler; this kind can no longer be created.
 export const PHOTO_GROUPS = [['Araç', ['arac']], ['Hasar öncesi', ['once']], ['Hasar sonrası', ['sonra']], ['Belgeler', ['ruhsat', 'ehliyet', 'kimlik', 'tutanak']]];
 
-export function openPhotoShare(photos, folder, { share = sharePhotos } = {}) {
+// Where the photos go, in the folder's button order. The share plugin can only open the phone's share menu, not
+// one app with the photos attached, so every target goes through that menu: they differ only in the words, and
+// the hint names the app to tap.
+export const SHARE_TARGETS = {
+  whatsapp: { label: 'WhatsApp', icon: 'brand-whatsapp', title: "WhatsApp'ta paylaş", hint: "Paylaş'a basınca açılan menüden WhatsApp'ı seç." },
+  mail: { label: 'Mail', icon: 'mail', title: 'Mail ile gönder', hint: "Paylaş'a basınca açılan menüden Mail'i seç." },
+  gmail: { label: 'Gmail', icon: 'brand-gmail', title: 'Gmail ile gönder', hint: "Paylaş'a basınca açılan menüden Gmail'i seç." },
+};
+
+export function openPhotoShare(photos, folder, { share = sharePhotos, target = 'whatsapp' } = {}) {
+  // hasOwnProperty, not Object.hasOwn: the app still installs on iOS 15.0, where Object.hasOwn does not exist.
+  const { title, hint } = Object.prototype.hasOwnProperty.call(SHARE_TARGETS, target) ? SHARE_TARGETS[target] : SHARE_TARGETS.whatsapp;
   const groups = PHOTO_GROUPS.map(([label, kinds]) => [label, photos.filter((p) => kinds.includes(p.kind))]).filter(([, ps]) => ps.length);
   const gallery = groups.flatMap(([, ps]) => ps);
   const selected = new Set();
@@ -24,6 +35,7 @@ export function openPhotoShare(photos, folder, { share = sharePhotos } = {}) {
   const cancel = h('button', { class: 'btn', type: 'button', onclick: () => !busy && s.close() }, 'Vazgeç');
   const content = h('div', { class: 'photo-picker' },
     h('p', { class: 'muted' }, 'Göndereceğin fotoğraflara dokun.'),
+    h('p', { class: 'muted small' }, hint),
     all,
     h('div', { class: 'photo-picker-groups' }, groups.map(([label, ps]) => h('div', { class: 'pgroup' },
       h('span', { class: 'muted small' }, label),
@@ -41,7 +53,7 @@ export function openPhotoShare(photos, folder, { share = sharePhotos } = {}) {
 
   // From Paylaş until the share call settles the picker cannot be closed: the photos are still being written
   // and the phone's share sheet is about to open over it.
-  const s = sheet(content, { title: "WhatsApp'ta paylaş", canClose: () => !busy, onClose: () => { closed = true; scope.revokeAll(); } });
+  const s = sheet(content, { title, canClose: () => !busy, onClose: () => { closed = true; scope.revokeAll(); } });
   s.el.querySelector('.sheet').classList.add('photo-picker-sheet');
 
   function paint() {

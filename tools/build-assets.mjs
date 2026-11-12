@@ -8,6 +8,7 @@ const ICON_NAMES = [
   'folders', 'pencil', 'photo', 'refresh', 'cloud', 'cloud-off', 'cloud-check', 'alert-triangle',
   'file-text', 'license', 'id', 'car', 'file-spreadsheet', 'download', 'upload', 'key', 'star',
   'loader-2', 'clipboard', 'circle-check', 'dots', 'receipt', 'calendar', 'user',
+  'mail', 'brand-gmail',
 ];
 
 const dir = 'node_modules/@tabler/icons/icons/outline';
