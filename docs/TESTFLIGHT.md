@@ -78,6 +78,18 @@ Kurulum kodu için: [KURULUM.md](KURULUM.md), 3. adım.
 - **Bir yıl dolmadan** (29 Ekim 2027): Certificates'ta yeni Apple Distribution sertifikası (`hazirla` aynı anahtarla yeni istek yazar), Profiles'ta profili bu sertifikayla yeniden oluştur, ikisini klasöre koy, `node tools/ios-imza.mjs yukle`. API anahtarının süresi dolmaz.
 - **Her nisan**: Apple yüklemeler için yeni Xcode şartı koyduysa (Apple Developer → Upcoming Requirements), `ios.yml`'deki `runs-on: macos-15`'i o Xcode'un olduğu Mac imajına çevir.
 
+## Yedek yol: Codemagic
+
+GitHub saatlerce Mac sunucusu vermezse (günlükte "The job was not acquired by Runner") aynı derleme Codemagic'te elle başlatılır: derler, App Store için imzalar, TestFlight'a yükler (`codemagic.yaml`, iş akışı `iPhone TestFlight (yedek)`). Testçilere ulaştırmak GitHub'da kalır; o iş Mac istemez.
+
+- **Codemagic'te duranlar**: `AutoVizyon` adlı App Store Connect API anahtarı, Codemagic'in ürettiği Apple Distribution sertifikası (`autovizyon_dagitim`) ve Apple'dan çekilmiş App Store profili (`autovizyon_appstore`, `com.autovizyon.app`). Depoda hiçbir gizli değer yok.
+- **Başlatmak için**: Codemagic → **auto-vizyon** uygulaması → **Start new build** → iş akışı `iPhone TestFlight (yedek)`, dal `main` → **Start new build**. Kendiliğinden başlamaz.
+- **Yükleme bitince**: derleme numarası Codemagic günlüğünün son adımında yazar ("Derleme N hazır"). Testçilere ulaştırmak için GitHub'da **iPhone TestFlight** iş akışı açıkken:
+  ```bash
+  gh workflow run ios.yml -f dagit_derleme=N
+  ```
+- **Derleme numarası**: Codemagic TestFlight'taki en yüksek numaranın bir fazlasını kullanır, GitHub kendi çalışma numarasını. Apple her numarayı bir kez kabul eder; aynı gün iki yoldan derleme yapma.
+
 ## Sorun olursa
 
 | Ne görüyorsun | Ne yapmalı |

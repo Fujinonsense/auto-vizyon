@@ -1,0 +1,78 @@
+# Backup path for the "ipa" job of .github/workflows/ios.yml: build, sign, upload to TestFlight.
+# For the days GitHub has no Mac runner to give. Started by hand only (Codemagic > Start new build).
+# Handing the build to the testers stays on GitHub, which needs no Mac for it:
+#   gh workflow run ios.yml -f dagit_derleme=<build number>
+# Secrets live in Codemagic (the App Store Connect key "AutoVizyon", the distribution certificate and the
+# App Store profile under Code signing identities), never in this file. See docs/TESTFLIGHT.md.
+workflows:
+  ios-testflight:
+    name: iPhone TestFlight (yedek)
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    integrations:
+      app_store_connect: AutoVizyon
+    environment:
+      # Codemagic picks the distribution certificate and the App Store profile for this bundle id.
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.autovizyon.app
+      vars:
+        BUNDLE_ID: com.autovizyon.app
+        XCODE_PROJECT: ios/App/App.xcodeproj
+        XCODE_SCHEME: App
+      # Node 24 as in ios.yml; this is the version the build machine already has.
+      node: 24.17.0
+      # The Xcode of the default build machine. ios.yml takes the newest stable Xcode of its own runner.
+      xcode: "26.6"
+    scripts:
+      - name: Paketler ve testler
+        script: |
+          set -euo pipefail
+          npm ci
+          npm test
+      - name: Web dosyalarını iOS projesine kopyala
+        script: |
+          npx cap sync ios
+      - name: İmza ayarlarını Xcode projesine uygula
+        script: |
+          xcode-project use-profiles --project "$XCODE_PROJECT"
+      - name: Derleme numarası
+        script: |
+          set -euo pipefail
+          # The app's id at Apple, looked up by bundle id so that it need not be written into the repository.
+          UYGULAMA=$(app-store-connect apps list --bundle-id-identifier "$BUNDLE_ID" --strict-match-identifier --json \
+            | jq -r 'if type == "array" then .[0].id else .id end // empty')
+          case "$UYGULAMA" in
+            ''|*[!0-9]*)
+              echo "HATA: $BUNDLE_ID için App Store Connect'te uygulama bulunamadı" >&2
+              exit 1 ;;
+          esac
+          # The newest TestFlight build number plus one: Apple takes each number once, and the testers get the highest.
+          SON=$(app-store-connect get-latest-testflight-build-number "$UYGULAMA" | tr -d '[:space:]')
+          case "$SON" in
+            ''|*[!0-9]*)
+              echo "HATA: TestFlight'taki son derleme numarası okunamadı ya da tam sayı değil: '$SON'" >&2
+              exit 1 ;;
+          esac
+          DERLEME=$((10#$SON + 1))
+          echo "Son derleme $SON, yenisi $DERLEME"
+          echo "DERLEME=$DERLEME" >> "$CM_ENV"
+      - name: Derle ve IPA oluştur
+        script: |
+          set -euo pipefail
+          # The build number goes in as a build setting, as in ios.yml.
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --config Release \
+            --archive-xcargs "COMPILER_INDEX_STORE_ENABLE=NO CURRENT_PROJECT_VERSION=$DERLEME"
+      - name: Sonuç
+        script: |
+          echo "Derleme $DERLEME hazır. Testçilere ulaştırmak için: gh workflow run ios.yml -f dagit_derleme=$DERLEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      # Upload only. Nothing is sent to beta review; the testers are looked after by the GitHub job above.
+      app_store_connect:
+        auth: integration
